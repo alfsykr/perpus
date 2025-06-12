@@ -7,8 +7,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <link href="assets/css/style.css" rel="stylesheet" />
-    <script src="assets/js/main.js"></script>
+    <link href="css/style.css" rel="stylesheet" />
+    <script src="js/app.js"></script>
+    <script src="js/rfid-handler.js"></script>
   </head>
   <body>
     <div class="container">
@@ -128,6 +129,7 @@
               id="borrowUID"
               placeholder="Masukkan atau tap UID KTP"
               oninput="verifyBorrowUID()"
+              autocomplete="off"
             />
             <div id="borrowRfidStatus" class="rfid-status">
               Status: Menunggu tap kartu anggota...

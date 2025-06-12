@@ -9,6 +9,11 @@ const firebaseConfig = {
   appId: "1:135325587497:web:314f93fd9c72f16a8a2438",
 };
 
+document.addEventListener("DOMContentLoaded", () => {
+  // Kode yang sudah ada...
+  setupRFIDListener(); // Dari rfid-handler.js
+});
+
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
