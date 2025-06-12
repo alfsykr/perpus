@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>E-Perpus - Sistem Manajemen Perpustakaan</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="assets/css/style.css" rel="stylesheet" />
+    <script src="assets/js/main.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📚 E-Perpus</h1>
+        <div class="nav-buttons">
+          <button class="nav-btn active" onclick="showSection('dashboard')">
+            📊 Dashboard
+          </button>
+          <button class="nav-btn" onclick="showSection('books')">
+            📖 Kelola Buku
+          </button>
+          <button class="nav-btn" onclick="showSection('members')">
+            👥 Kelola Anggota
+          </button>
+          <button class="nav-btn" onclick="showSection('borrow')">
+            📤 Peminjaman
+          </button>
+          <button class="nav-btn" onclick="showSection('return')">
+            📥 Pengembalian
+          </button>
+          <button class="nav-btn" onclick="showSection('reports')">
+            📋 Laporan
+          </button>
+          <button class="nav-btn" onclick="showSection('settings')">
+            ⚙️ Pengaturan
+          </button>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <!-- Dashboard Section -->
+        <div id="dashboard-section">
+          <h2 class="section-title">📊 Dashboard Perpustakaan</h2>
+
+          <div class="dashboard-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📚</div>
+              <div class="stat-number" id="totalBooks">0</div>
+              <div class="stat-label">Total Buku</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">👥</div>
+              <div class="stat-number" id="totalMembers">0</div>
+              <div class="stat-label">Total Anggota</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📤</div>
+              <div class="stat-number" id="borrowedBooks">0</div>
+              <div class="stat-label">Buku Dipinjam</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⚠️</div>
+              <div class="stat-number" id="overdueBooks">0</div>
+              <div class="stat-label">Terlambat</div>
+            </div>
+          </div>
+
+          <div class="chart-grid">
+            <div class="chart-container">
+              <h3>📊 Statistik Kategori Buku</h3>
+              <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-container">
+              <h3>📈 Peminjaman Minggu Ini</h3>
+              <canvas id="weeklyChart"></canvas>
+            </div>
+          </div>
+
+          <div class="recent-activities">
+            <h3>🕒 Aktivitas Terbaru</h3>
+            <div id="recentActivities">
+              <div class="loading">Memuat aktivitas...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kelola Buku Section -->
+        <div id="books-section" class="hidden">
+          <h2 class="section-title">📖 Kelola Buku</h2>
+          <button class="btn" onclick="showModal('bookModal')">
+            ➕ Tambah Buku
+          </button>
+          <input
+            type="text"
+            class="search-box"
+            id="bookSearch"
+            placeholder="Cari buku..."
+            onkeyup="searchBooks()"
+          />
+          <div id="booksList"></div>
+        </div>
+
+        <!-- Kelola Anggota Section -->
+        <div id="members-section" class="hidden">
+          <h2 class="section-title">👥 Kelola Anggota</h2>
+          <button class="btn" onclick="showModal('memberModal')">
+            ➕ Tambah Anggota
+          </button>
+          <input
+            type="text"
+            class="search-box"
+            id="memberSearch"
+            placeholder="Cari anggota..."
+            onkeyup="searchMembers()"
+          />
+          <div id="membersList"></div>
+        </div>
+        <!-- Peminjaman Section -->
+        <div id="borrow-section" class="hidden">
+          <h2 class="section-title">📤 Peminjaman Buku</h2>
+
+          <div class="form-group">
+            <label for="borrowUID">📡 Tap Kartu Anggota (UID):</label>
+            <input
+              type="text"
+              id="borrowUID"
+              placeholder="Masukkan atau tap UID KTP"
+              oninput="verifyBorrowUID()"
+            />
+            <div id="borrowRfidStatus" class="rfid-status">
+              Status: Menunggu tap kartu anggota...
+            </div>
+          </div>
+
+          <div id="borrowSectionContent" class="hidden">
+            <div id="borrowMemberInfo">
+              <h3>👤 Informasi Anggota:</h3>
+              <div id="borrowMemberDetails"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="borrowBookSelect">📖 Pilih Buku (Maks. 3):</label>
+              <select id="borrowBookSelect" onchange="selectBookForBorrow()">
+                <option value="">-- Pilih Buku --</option>
+              </select>
+            </div>
+
+            <h4>📚 Buku Dipilih:</h4>
+            <ul id="selectedBooksList"></ul>
+
+            <button class="btn" onclick="processBorrow()">
+              📤 Proses Peminjaman
+            </button>
+          </div>
+        </div>
+
+        <!-- Pengembalian Section -->
+        <div id="return-section" class="hidden">
+          <h2 class="section-title">📥 Pengembalian Buku</h2>
+          <div class="form-group">
+            <label>Tap Kartu / Masukkan UID:</label>
+            <input
+              type="text"
+              id="returnUID"
+              placeholder="UID Anggota"
+              onchange="loadMemberForReturn()"
+            />
+          </div>
+          <div id="returnMemberInfo" class="hidden">
+            <h3>Buku yang Dipinjam:</h3>
+            <div id="borrowedBooksList"></div>
+          </div>
+        </div>
+
+        <!-- Laporan Section -->
+        <div id="reports-section" class="hidden">
+          <h2 class="section-title">📋 Laporan</h2>
+          <div class="grid">
+            <div class="chart-container">
+              <h3>📅 Laporan Harian</h3>
+              <input type="date" id="dailyReportDate" />
+              <button class="btn" onclick="generateDailyReport()">
+                👁️ Lihat Laporan
+              </button>
+              <button class="btn btn-success" onclick="printReport('daily')">
+                🖨️ Print
+              </button>
+            </div>
+            <div class="chart-container">
+              <h3>📆 Laporan Bulanan</h3>
+              <input type="month" id="monthlyReportMonth" />
+              <button class="btn" onclick="generateMonthlyReport()">
+                👁️ Lihat Laporan
+              </button>
+              <button class="btn btn-success" onclick="printReport('monthly')">
+                🖨️ Print
+              </button>
+            </div>
+          </div>
+          <div id="reportContent"></div>
+        </div>
+
+        <!-- Pengaturan Section -->
+        <div id="settings-section" class="hidden">
+          <h2 class="section-title">⚙️ Pengaturan</h2>
+          <div class="grid">
+            <div class="chart-container">
+              <h3>📚 Pengaturan Peminjaman</h3>
+              <div class="form-group">
+                <label>Lama Peminjaman (hari):</label>
+                <input type="number" id="borrowDuration" value="7" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Maksimal Buku per Anggota:</label>
+                <input type="number" id="maxBooksPerMember" value="3" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Denda per Hari (Rp):</label>
+                <input
+                  type="number"
+                  id="finePerDay"
+                  value="1000"
+                  min="0"
+                  step="500"
+                />
+              </div>
+              <button class="btn" onclick="saveSettings()">
+                💾 Simpan Pengaturan
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Book Modal -->
+    <div id="bookModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('bookModal')">&times;</span>
+        <h2 id="bookModalTitle">Tambah Buku</h2>
+        <form id="bookForm">
+          <div class="form-group">
+            <label>Judul Buku:</label>
+            <input type="text" id="bookTitle" required />
+          </div>
+          <div class="form-group">
+            <label>Pengarang:</label>
+            <input type="text" id="bookAuthor" required />
+          </div>
+          <div class="form-group">
+            <label>Penerbit:</label>
+            <input type="text" id="bookPublisher" />
+          </div>
+          <div class="form-group">
+            <label>Tahun Terbit:</label>
+            <input type="number" id="bookYear" />
+          </div>
+          <div class="form-group">
+            <label>ISBN:</label>
+            <input type="text" id="bookISBN" />
+          </div>
+          <div class="form-group">
+            <label>Kategori:</label>
+            <select id="bookCategory">
+              <option value="Fiksi">Fiksi</option>
+              <option value="Non-Fiksi">Non-Fiksi</option>
+              <option value="Pendidikan">Pendidikan</option>
+              <option value="Teknologi">Teknologi</option>
+              <option value="Sejarah">Sejarah</option>
+              <option value="Biografi">Biografi</option>
+              <option value="Sains">Sains</option>
+              <option value="Agama">Agama</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Jumlah Stok:</label>
+            <input type="number" id="bookStock" min="1" value="1" required />
+          </div>
+          <button type="submit" class="btn">💾 Simpan</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            onclick="closeModal('bookModal')"
+          >
+            ❌ Batal
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Member Modal -->
+    <div id="memberModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('memberModal')">&times;</span>
+        <h2 id="memberModalTitle">Tambah Anggota</h2>
+        <form id="memberForm">
+          <div class="form-group">
+            <label>UID Kartu:</label>
+            <input type="text" id="memberUID" required />
+          </div>
+          <div class="form-group">
+            <label>Nama Lengkap:</label>
+            <input type="text" id="memberName" required />
+          </div>
+          <div class="form-group">
+            <label>Email:</label>
+            <input type="email" id="memberEmail" />
+          </div>
+          <div class="form-group">
+            <label>Nomor Telepon:</label>
+            <input type="tel" id="memberPhone" />
+          </div>
+          <div class="form-group">
+            <label>Alamat:</label>
+            <textarea id="memberAddress" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Jenis Anggota:</label>
+            <select id="memberType">
+              <option value="Mahasiswa">Mahasiswa</option>
+              <option value="Dosen">Dosen</option>
+              <option value="Staff">Staff</option>
+              <option value="Umum">Umum</option>
+            </select>
+          </div>
+          <button type="submit" class="btn">💾 Simpan</button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            onclick="closeModal('memberModal')"
+          >
+            ❌ Batal
+          </button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
