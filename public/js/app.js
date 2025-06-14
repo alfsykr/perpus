@@ -1,3 +1,4 @@
+
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB1HKFjB7AZFLZ-P-iixMd9SdGA5njXN4c",
@@ -9,11 +10,7 @@ const firebaseConfig = {
   appId: "1:135325587497:web:314f93fd9c72f16a8a2438",
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Kode yang sudah ada...
-  setupRFIDListener(); // Dari rfid-handler.js
-});
-
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
@@ -27,6 +24,7 @@ let weeklyChart = null;
 document.addEventListener("DOMContentLoaded", function () {
   loadData();
   initializeCharts();
+  setupRFIDListener();
 });
 
 function loadData() {
@@ -37,11 +35,13 @@ function loadData() {
     updateDashboard();
     updateCategoryChart();
   });
+  
   database.ref("Members").on("value", (snap) => {
     allMembers = snap.val() || {};
-    displayMembers(); // Pastikan fungsi ini dipanggil
+    displayMembers();
     updateDashboard();
   });
+  
   database.ref("Transactions").on("value", (snap) => {
     allTransactions = snap.val() || {};
     updateDashboard();
@@ -56,11 +56,9 @@ function updateDashboard() {
     totalBooks += Number(book.stock || 0);
   });
   document.getElementById("totalBooks").textContent = totalBooks;
-  document.getElementById("totalMembers").textContent =
-    Object.keys(allMembers).length;
+  document.getElementById("totalMembers").textContent = Object.keys(allMembers).length;
 
-  let borrowedBooks = 0,
-    overdueBooks = 0;
+  let borrowedBooks = 0, overdueBooks = 0;
   const today = new Date().toISOString().slice(0, 10);
   Object.values(allTransactions).forEach((trx) => {
     if (trx.status === "borrowed") {
@@ -74,38 +72,34 @@ function updateDashboard() {
 
 function displayBooks() {
   const booksList = document.getElementById("booksList");
-  const search = (
-    document.getElementById("bookSearch")?.value || ""
-  ).toLowerCase();
+  const search = (document.getElementById("bookSearch")?.value || "").toLowerCase();
   booksList.innerHTML = "";
+  
   Object.entries(allBooks).forEach(([id, book]) => {
-    if (
-      !search ||
-      (book.title && book.title.toLowerCase().includes(search)) ||
-      (book.author && book.author.toLowerCase().includes(search)) ||
-      (book.category && book.category.toLowerCase().includes(search))
-    ) {
+    if (!search || 
+        (book.title && book.title.toLowerCase().includes(search)) ||
+        (book.author && book.author.toLowerCase().includes(search)) ||
+        (book.category && book.category.toLowerCase().includes(search))) {
       const status = book.stock > 0 ? "Tersedia" : "Terpinjam";
-      const statusClass =
-        book.stock > 0 ? "status-available" : "status-borrowed";
+      const statusClass = book.stock > 0 ? "status-available" : "status-borrowed";
       booksList.innerHTML += `
-                <div class="item-card">
-                    <strong>${
-                      book.title || ""
-                    }</strong> <span class="stock-info">Stok: ${
-        book.stock || 0
-      }</span>
-                    <div>
-                        <span class="status-badge ${statusClass}">${status}</span>
-                    </div>
-                    <div>
-                        <button class="btn" onclick="editBook('${id}')">✏️ Edit</button>
-                        <button class="btn btn-danger" onclick="deleteBook('${id}')">🗑️ Hapus</button>
-                    </div>
-                </div>
-            `;
+        <div class="item-card">
+          <strong>${book.title || ""}</strong> <span class="stock-info">Stok: ${book.stock || 0}</span>
+          <div>
+            <span class="status-badge ${statusClass}">${status}</span>
+          </div>
+          <div>
+            <button class="btn" onclick="editBook('${id}')">✏️ Edit</button>
+            <button class="btn btn-danger" onclick="deleteBook('${id}')">🗑️ Hapus</button>
+          </div>
+        </div>
+      `;
     }
   });
+}
+
+function searchBooks() {
+  displayBooks();
 }
 
 function updateBookOptions() {
@@ -119,105 +113,47 @@ function updateBookOptions() {
   });
 }
 
-// CRUD Buku
-// Tambahkan fungsi displayMembers() yang belum ada
 function displayMembers() {
   const membersList = document.getElementById("membersList");
-  const search = (
-    document.getElementById("memberSearch")?.value || ""
-  ).toLowerCase();
+  const search = (document.getElementById("memberSearch")?.value || "").toLowerCase();
   membersList.innerHTML = "";
 
   Object.entries(allMembers).forEach(([id, member]) => {
-    if (
-      !search ||
-      (member.name && member.name.toLowerCase().includes(search)) ||
-      (member.uid && member.uid.toLowerCase().includes(search)) ||
-      (member.email && member.email.toLowerCase().includes(search)) ||
-      (member.type && member.type.toLowerCase().includes(search))
-    ) {
+    if (!search ||
+        (member.name && member.name.toLowerCase().includes(search)) ||
+        (member.uid && member.uid.toLowerCase().includes(search)) ||
+        (member.email && member.email.toLowerCase().includes(search)) ||
+        (member.type && member.type.toLowerCase().includes(search))) {
       membersList.innerHTML += `
-                <div class="item-card">
-                    <strong>${member.name || ""}</strong>
-                    <div>
-                        <span class="status-badge status-available">UID: ${
-                          member.uid || ""
-                        }</span>
-                        <span class="stock-info">Tipe: ${
-                          member.type || ""
-                        }</span>
-                    </div>
-                    <div>
-                        <small>Email: ${member.email || "-"}</small><br>
-                        <small>Telepon: ${member.phone || "-"}</small>
-                    </div>
-                    <div>
-                        <button class="btn" onclick="editMember('${id}')">✏️ Edit</button>
-                        <button class="btn btn-danger" onclick="deleteMember('${id}')">🗑️ Hapus</button>
-                    </div>
-                </div>
-            `;
+        <div class="item-card">
+          <strong>${member.name || ""}</strong>
+          <div>
+            <span class="status-badge status-available">UID: ${member.uid || ""}</span>
+            <span class="stock-info">Tipe: ${member.type || ""}</span>
+          </div>
+          <div>
+            <small>Email: ${member.email || "-"}</small><br>
+            <small>Telepon: ${member.phone || "-"}</small>
+          </div>
+          <div>
+            <button class="btn" onclick="editMember('${id}')">✏️ Edit</button>
+            <button class="btn btn-danger" onclick="deleteMember('${id}')">🗑️ Hapus</button>
+          </div>
+        </div>
+      `;
     }
   });
 
   if (membersList.innerHTML === "") {
-    membersList.innerHTML =
-      '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
+    membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
   }
 }
 
-// Tambahkan fungsi searchMembers() yang belum ada
-// Tambahkan fungsi displayMembers() yang belum ada
-function displayMembers() {
-  const membersList = document.getElementById("membersList");
-  const search = (
-    document.getElementById("memberSearch")?.value || ""
-  ).toLowerCase();
-  membersList.innerHTML = "";
-
-  Object.entries(allMembers).forEach(([id, member]) => {
-    if (
-      !search ||
-      (member.name && member.name.toLowerCase().includes(search)) ||
-      (member.uid && member.uid.toLowerCase().includes(search)) ||
-      (member.email && member.email.toLowerCase().includes(search)) ||
-      (member.type && member.type.toLowerCase().includes(search))
-    ) {
-      membersList.innerHTML += `
-                <div class="item-card">
-                    <strong>${member.name || ""}</strong>
-                    <div>
-                        <span class="status-badge status-available">UID: ${
-                          member.uid || ""
-                        }</span>
-                        <span class="stock-info">Tipe: ${
-                          member.type || ""
-                        }</span>
-                    </div>
-                    <div>
-                        <small>Email: ${member.email || "-"}</small><br>
-                        <small>Telepon: ${member.phone || "-"}</small>
-                    </div>
-                    <div>
-                        <button class="btn" onclick="editMember('${id}')">✏️ Edit</button>
-                        <button class="btn btn-danger" onclick="deleteMember('${id}')">🗑️ Hapus</button>
-                    </div>
-                </div>
-            `;
-    }
-  });
-
-  if (membersList.innerHTML === "") {
-    membersList.innerHTML =
-      '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
-  }
-}
-
-// Tambahkan fungsi searchMembers() yang belum ada
 function searchMembers() {
   displayMembers();
 }
 
+// CRUD Buku
 document.getElementById("bookForm").onsubmit = function (e) {
   e.preventDefault();
   const data = {
@@ -229,11 +165,17 @@ document.getElementById("bookForm").onsubmit = function (e) {
     category: document.getElementById("bookCategory").value,
     stock: parseInt(document.getElementById("bookStock").value),
   };
+  
   if (currentEditId) {
-    database.ref("Books/" + currentEditId).update(data);
+    database.ref("Books/" + currentEditId).update(data)
+      .then(() => console.log("Book updated successfully"))
+      .catch((error) => console.error("Error updating book:", error));
   } else {
-    database.ref("Books").push(data);
+    database.ref("Books").push(data)
+      .then(() => console.log("Book added successfully"))
+      .catch((error) => console.error("Error adding book:", error));
   }
+  
   closeModal("bookModal");
   this.reset();
   currentEditId = null;
@@ -255,7 +197,9 @@ function editBook(id) {
 
 function deleteBook(id) {
   if (confirm("Yakin ingin menghapus buku ini?")) {
-    database.ref("Books/" + id).remove();
+    database.ref("Books/" + id).remove()
+      .then(() => console.log("Book deleted successfully"))
+      .catch((error) => console.error("Error deleting book:", error));
   }
 }
 
@@ -270,11 +214,17 @@ document.getElementById("memberForm").onsubmit = function (e) {
     address: document.getElementById("memberAddress").value,
     type: document.getElementById("memberType").value,
   };
+  
   if (currentEditId) {
-    database.ref("Members/" + currentEditId).update(data);
+    database.ref("Members/" + currentEditId).update(data)
+      .then(() => console.log("Member updated successfully"))
+      .catch((error) => console.error("Error updating member:", error));
   } else {
-    database.ref("Members").push(data);
+    database.ref("Members").push(data)
+      .then(() => console.log("Member added successfully"))
+      .catch((error) => console.error("Error adding member:", error));
   }
+  
   closeModal("memberModal");
   this.reset();
   currentEditId = null;
@@ -295,7 +245,9 @@ function editMember(id) {
 
 function deleteMember(id) {
   if (confirm("Yakin ingin menghapus anggota ini?")) {
-    database.ref("Members/" + id).remove();
+    database.ref("Members/" + id).remove()
+      .then(() => console.log("Member deleted successfully"))
+      .catch((error) => console.error("Error deleting member:", error));
   }
 }
 
@@ -303,6 +255,7 @@ function deleteMember(id) {
 function showModal(id) {
   document.getElementById(id).style.display = "block";
 }
+
 function closeModal(id) {
   document.getElementById(id).style.display = "none";
   currentEditId = null;
@@ -328,10 +281,10 @@ function verifyBorrowUID() {
       statusText.textContent = `Status: UID ditemukan - ${member.name}`;
       content.classList.remove("hidden");
       memberDetails.innerHTML = `
-                <strong>${member.name}</strong><br>
-                Email: ${member.email || "-"}<br>
-                Tipe: ${member.type || "-"}
-            `;
+        <strong>${member.name}</strong><br>
+        Email: ${member.email || "-"}<br>
+        Tipe: ${member.type || "-"}
+      `;
     }
   });
 
@@ -407,11 +360,19 @@ function processBorrow() {
         status: "borrowed",
       };
 
-      database.ref("Transactions").push(trxData);
-      database.ref("Books/" + bookId).update({
-        stock: Number(book.stock) - 1,
-      });
-      successCount++;
+      database.ref("Transactions").push(trxData)
+        .then(() => {
+          return database.ref("Books/" + bookId).update({
+            stock: Number(book.stock) - 1,
+          });
+        })
+        .then(() => {
+          successCount++;
+          console.log("Transaction processed successfully");
+        })
+        .catch((error) => {
+          console.error("Error processing transaction:", error);
+        });
     }
   });
 
@@ -426,8 +387,7 @@ function processBorrow() {
 
 function resetBorrowForm() {
   document.getElementById("borrowUID").value = "";
-  document.getElementById("borrowRfidStatus").textContent =
-    "Status: Menunggu tap kartu anggota...";
+  document.getElementById("borrowRfidStatus").textContent = "Status: Menunggu tap kartu anggota...";
   document.getElementById("borrowSectionContent").classList.add("hidden");
   document.getElementById("borrowMemberDetails").innerHTML = "";
   document.getElementById("selectedBooksList").innerHTML = "";
@@ -442,56 +402,64 @@ function loadMemberForReturn() {
   Object.entries(allMembers).forEach(([id, member]) => {
     if (member.uid === uid) memberId = id;
   });
+  
   const borrowedBooksList = document.getElementById("borrowedBooksList");
   borrowedBooksList.innerHTML = "";
   let found = false;
+  
   Object.entries(allTransactions).forEach(([trxId, trx]) => {
     if (trx.memberId === memberId && trx.status === "borrowed") {
       found = true;
       const overdue = trx.dueDate < new Date().toISOString().slice(0, 10);
       const overdueClass = overdue ? "overdue" : "";
       borrowedBooksList.innerHTML += `
-                <div class="transaction-item ${overdueClass}">
-                    <span>
-                        <strong>${trx.bookTitle}</strong>
-                        <br>
-                        <small>Jatuh tempo: ${trx.dueDate}</small>
-                    </span>
-                    <button class="btn btn-success" onclick="processReturn('${trxId}')">Kembalikan</button>
-                </div>
-            `;
+        <div class="transaction-item ${overdueClass}">
+          <span>
+            <strong>${trx.bookTitle}</strong>
+            <br>
+            <small>Jatuh tempo: ${trx.dueDate}</small>
+          </span>
+          <button class="btn btn-success" onclick="processReturn('${trxId}')">Kembalikan</button>
+        </div>
+      `;
     }
   });
-  document
-    .getElementById("returnMemberInfo")
-    .classList.toggle("hidden", !found);
-  if (!found)
-    borrowedBooksList.innerHTML =
-      "<em>Tidak ada buku yang sedang dipinjam.</em>";
+  
+  document.getElementById("returnMemberInfo").classList.toggle("hidden", !found);
+  if (!found) borrowedBooksList.innerHTML = "<em>Tidak ada buku yang sedang dipinjam.</em>";
 }
 
 function processReturn(trxId) {
-  database.ref("Transactions/" + trxId + "/status").set("returned");
-  const trx = allTransactions[trxId];
-  if (trx) {
-    const book = allBooks[trx.bookId];
-    if (book) {
-      database
-        .ref("Books/" + trx.bookId)
-        .update({ stock: Number(book.stock) + 1 });
-    }
-  }
-  alert("Pengembalian buku berhasil!");
-  loadMemberForReturn();
+  database.ref("Transactions/" + trxId + "/status").set("returned")
+    .then(() => {
+      const trx = allTransactions[trxId];
+      if (trx) {
+        const book = allBooks[trx.bookId];
+        if (book) {
+          return database.ref("Books/" + trx.bookId).update({ 
+            stock: Number(book.stock) + 1 
+          });
+        }
+      }
+    })
+    .then(() => {
+      alert("Pengembalian buku berhasil!");
+      loadMemberForReturn();
+    })
+    .catch((error) => {
+      console.error("Error processing return:", error);
+      alert("Gagal memproses pengembalian!");
+    });
 }
 
-// Statistik Kategori Buku
+// Charts
 function initializeCharts() {
   const ctx1 = document.getElementById("categoryChart").getContext("2d");
   categoryChart = new Chart(ctx1, {
     type: "doughnut",
     data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
   });
+  
   const ctx2 = document.getElementById("weeklyChart").getContext("2d");
   weeklyChart = new Chart(ctx2, {
     type: "bar",
@@ -501,29 +469,27 @@ function initializeCharts() {
     },
   });
 }
+
 function updateCategoryChart() {
   const categoryCount = {};
   Object.values(allBooks).forEach((book) => {
     const cat = book.category || "Lainnya";
     categoryCount[cat] = (categoryCount[cat] || 0) + 1;
   });
+  
   categoryChart.data.labels = Object.keys(categoryCount);
   categoryChart.data.datasets[0].data = Object.values(categoryCount);
   categoryChart.data.datasets[0].backgroundColor = [
-    "#6c5ce7",
-    "#fdcb6e",
-    "#00b894",
-    "#00cec9",
-    "#d63031",
-    "#e17055",
-    "#0984e3",
-    "#636e72",
+    "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
+    "#d63031", "#e17055", "#0984e3", "#636e72",
   ];
   categoryChart.update();
 }
+
 function updateWeeklyChart() {
   const days = [];
   const counts = [];
+  
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -536,56 +502,46 @@ function updateWeeklyChart() {
     });
     counts.push(count);
   }
+  
   weeklyChart.data.labels = days;
   weeklyChart.data.datasets[0].data = counts;
   weeklyChart.update();
 }
+
 function updateRecentActivities() {
   const container = document.getElementById("recentActivities");
   const sorted = Object.values(allTransactions).sort((a, b) =>
     (b.borrowDate || "").localeCompare(a.borrowDate || "")
   );
+  
   container.innerHTML = "";
   sorted.slice(0, 5).forEach((trx) => {
     container.innerHTML += `
-            <div class="activity-item">
-                <span class="activity-icon">${
-                  trx.status === "borrowed" ? "📤" : "📥"
-                }</span>
-                <span>
-                    <strong>${trx.memberName}</strong> ${
-      trx.status === "borrowed" ? "meminjam" : "mengembalikan"
-    } <em>${trx.bookTitle}</em>
-                    <br>
-                    <small>${trx.borrowDate || "-"}</small>
-                </span>
-            </div>
-        `;
+      <div class="activity-item">
+        <span class="activity-icon">${trx.status === "borrowed" ? "📤" : "📥"}</span>
+        <span>
+          <strong>${trx.memberName}</strong> ${trx.status === "borrowed" ? "meminjam" : "mengembalikan"} 
+          <em>${trx.bookTitle}</em>
+          <br>
+          <small>${trx.borrowDate || "-"}</small>
+        </span>
+      </div>
+    `;
   });
-  if (!container.innerHTML)
-    container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
+  
+  if (!container.innerHTML) container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
 }
 
-// Navigasi
+// Navigation
 function showSection(section) {
-  [
-    "dashboard",
-    "books",
-    "members",
-    "borrow",
-    "return",
-    "reports",
-    "settings",
-  ].forEach((id) => {
+  ["dashboard", "books", "members", "borrow", "return", "reports", "settings"].forEach((id) => {
     document.getElementById(id + "-section").classList.add("hidden");
   });
   document.getElementById(section + "-section").classList.remove("hidden");
-  document
-    .querySelectorAll(".nav-btn")
-    .forEach((btn) => btn.classList.remove("active"));
+  
+  document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    if (btn.textContent.toLowerCase().includes(section))
-      btn.classList.add("active");
+    if (btn.textContent.toLowerCase().includes(section)) btn.classList.add("active");
   });
 }
 
@@ -596,3 +552,41 @@ window.onclick = function (event) {
     if (event.target === modal) closeModal(modalId);
   });
 };
+
+// RFID Handler integration
+function setupRFIDListener() {
+  const rfidRef = database.ref("current_rfid");
+
+  rfidRef.on("value", async (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.uid) {
+      // Jika berada di halaman Peminjaman
+      const borrowSection = document.getElementById("borrow-section");
+      if (borrowSection && !borrowSection.classList.contains("hidden")) {
+        document.getElementById("borrowUID").value = data.uid;
+        verifyBorrowUID();
+      }
+
+      // Jika berada di halaman Pengembalian
+      const returnSection = document.getElementById("return-section");
+      if (returnSection && !returnSection.classList.contains("hidden")) {
+        document.getElementById("returnUID").value = data.uid;
+        loadMemberForReturn();
+      }
+
+      // Feedback visual
+      const statusElement = document.getElementById("borrowRfidStatus");
+      if (statusElement) {
+        statusElement.textContent = "Status: Memproses UID...";
+        statusElement.style.color = "#4CAF50";
+        setTimeout(() => (statusElement.style.color = ""), 2000);
+      }
+
+      // Reset UID agar bisa tap kartu berikutnya
+      setTimeout(() => {
+        database.ref("current_rfid").set({})
+          .catch((error) => console.error("Error clearing RFID:", error));
+      }, 2000);
+    }
+  });
+}

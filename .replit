@@ -2,3 +2,19 @@ modules = ["nodejs-20", "web", "python-3.12"]
 
 [nix]
 channel = "stable-24_05"
+
+[workflows]
+runButton = "Run Development Server"
+
+[[workflows.workflow]]
+name = "Run Development Server"
+author = 43827890
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
