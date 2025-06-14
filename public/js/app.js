@@ -30,134 +30,201 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function initializeForms() {
-  // Setup Book Form
-  const bookForm = document.getElementById("bookForm");
-  if (bookForm) {
-    bookForm.onsubmit = function (e) {
-      e.preventDefault();
-      console.log("Book form submitted");
-      
-      const data = {
-        title: document.getElementById("bookTitle").value,
-        author: document.getElementById("bookAuthor").value,
-        publisher: document.getElementById("bookPublisher").value,
-        year: document.getElementById("bookYear").value,
-        isbn: document.getElementById("bookISBN").value,
-        category: document.getElementById("bookCategory").value,
-        stock: parseInt(document.getElementById("bookStock").value) || 1,
-        createdAt: new Date().toISOString()
+  // Wait for DOM to be fully loaded
+  setTimeout(() => {
+    // Setup Book Form
+    const bookForm = document.getElementById("bookForm");
+    if (bookForm) {
+      bookForm.onsubmit = function (e) {
+        e.preventDefault();
+        console.log("Book form submitted");
+        
+        const titleEl = document.getElementById("bookTitle");
+        const authorEl = document.getElementById("bookAuthor");
+        const publisherEl = document.getElementById("bookPublisher");
+        const yearEl = document.getElementById("bookYear");
+        const isbnEl = document.getElementById("bookISBN");
+        const categoryEl = document.getElementById("bookCategory");
+        const stockEl = document.getElementById("bookStock");
+        
+        if (!titleEl || !authorEl || !categoryEl || !stockEl) {
+          console.error("Book form elements not found");
+          return;
+        }
+        
+        const data = {
+          title: titleEl.value,
+          author: authorEl.value,
+          publisher: publisherEl ? publisherEl.value : "",
+          year: yearEl ? yearEl.value : "",
+          isbn: isbnEl ? isbnEl.value : "",
+          category: categoryEl.value,
+          stock: parseInt(stockEl.value) || 1,
+          createdAt: new Date().toISOString()
+        };
+        
+        console.log("Book data:", data);
+        
+        if (currentEditId) {
+          database.ref("Books/" + currentEditId).update(data)
+            .then(() => {
+              console.log("Book updated successfully");
+              alert("Buku berhasil diperbarui!");
+              closeModal("bookModal");
+              this.reset();
+              currentEditId = null;
+            })
+            .catch((error) => {
+              console.error("Error updating book:", error);
+              alert("Gagal memperbarui buku: " + error.message);
+            });
+        } else {
+          database.ref("Books").push(data)
+            .then(() => {
+              console.log("Book added successfully");
+              alert("Buku berhasil ditambahkan!");
+              closeModal("bookModal");
+              this.reset();
+              currentEditId = null;
+            })
+            .catch((error) => {
+              console.error("Error adding book:", error);
+              alert("Gagal menambahkan buku: " + error.message);
+            });
+        }
       };
-      
-      console.log("Book data:", data);
-      
-      if (currentEditId) {
-        database.ref("Books/" + currentEditId).update(data)
-          .then(() => {
-            console.log("Book updated successfully");
-            alert("Buku berhasil diperbarui!");
-          })
-          .catch((error) => {
-            console.error("Error updating book:", error);
-            alert("Gagal memperbarui buku: " + error.message);
-          });
-      } else {
-        database.ref("Books").push(data)
-          .then(() => {
-            console.log("Book added successfully");
-            alert("Buku berhasil ditambahkan!");
-          })
-          .catch((error) => {
-            console.error("Error adding book:", error);
-            alert("Gagal menambahkan buku: " + error.message);
-          });
-      }
-      
-      closeModal("bookModal");
-      this.reset();
-      currentEditId = null;
-    };
-  }
+    }
 
-  // Setup Member Form
-  const memberForm = document.getElementById("memberForm");
-  if (memberForm) {
-    memberForm.onsubmit = function (e) {
-      e.preventDefault();
-      console.log("Member form submitted");
-      
-      const data = {
-        uid: document.getElementById("memberUID").value,
-        name: document.getElementById("memberName").value,
-        email: document.getElementById("memberEmail").value,
-        phone: document.getElementById("memberPhone").value,
-        address: document.getElementById("memberAddress").value,
-        type: document.getElementById("memberType").value,
-        createdAt: new Date().toISOString()
+    // Setup Member Form
+    const memberForm = document.getElementById("memberForm");
+    if (memberForm) {
+      memberForm.onsubmit = function (e) {
+        e.preventDefault();
+        console.log("Member form submitted");
+        
+        const uidEl = document.getElementById("memberUID");
+        const nameEl = document.getElementById("memberName");
+        const emailEl = document.getElementById("memberEmail");
+        const phoneEl = document.getElementById("memberPhone");
+        const addressEl = document.getElementById("memberAddress");
+        const typeEl = document.getElementById("memberType");
+        
+        if (!uidEl || !nameEl || !typeEl) {
+          console.error("Member form elements not found");
+          return;
+        }
+        
+        const data = {
+          uid: uidEl.value,
+          name: nameEl.value,
+          email: emailEl ? emailEl.value : "",
+          phone: phoneEl ? phoneEl.value : "",
+          address: addressEl ? addressEl.value : "",
+          type: typeEl.value,
+          createdAt: new Date().toISOString()
+        };
+        
+        console.log("Member data:", data);
+        
+        if (currentEditId) {
+          database.ref("Members/" + currentEditId).update(data)
+            .then(() => {
+              console.log("Member updated successfully");
+              alert("Anggota berhasil diperbarui!");
+              closeModal("memberModal");
+              this.reset();
+              currentEditId = null;
+            })
+            .catch((error) => {
+              console.error("Error updating member:", error);
+              alert("Gagal memperbarui anggota: " + error.message);
+            });
+        } else {
+          database.ref("Members").push(data)
+            .then(() => {
+              console.log("Member added successfully");
+              alert("Anggota berhasil ditambahkan!");
+              closeModal("memberModal");
+              this.reset();
+              currentEditId = null;
+            })
+            .catch((error) => {
+              console.error("Error adding member:", error);
+              alert("Gagal menambahkan anggota: " + error.message);
+            });
+        }
       };
-      
-      console.log("Member data:", data);
-      
-      if (currentEditId) {
-        database.ref("Members/" + currentEditId).update(data)
-          .then(() => {
-            console.log("Member updated successfully");
-            alert("Anggota berhasil diperbarui!");
-          })
-          .catch((error) => {
-            console.error("Error updating member:", error);
-            alert("Gagal memperbarui anggota: " + error.message);
-          });
-      } else {
-        database.ref("Members").push(data)
-          .then(() => {
-            console.log("Member added successfully");
-            alert("Anggota berhasil ditambahkan!");
-          })
-          .catch((error) => {
-            console.error("Error adding member:", error);
-            alert("Gagal menambahkan anggota: " + error.message);
-          });
-      }
-      
-      closeModal("memberModal");
-      this.reset();
-      currentEditId = null;
-    };
-  }
+    }
+  }, 100);
 }
+
+let dataLoadTimeout = null;
 
 function loadData() {
   console.log("Loading data from Firebase...");
   
-  database.ref("Books").on("value", (snap) => {
-    console.log("Books data received:", snap.val());
-    allBooks = snap.val() || {};
-    displayBooks();
-    updateBookOptions();
-    updateDashboard();
-    updateCategoryChart();
-  }, (error) => {
-    console.error("Error loading books:", error);
-  });
+  // Debounce data loading to prevent infinite loops
+  if (dataLoadTimeout) {
+    clearTimeout(dataLoadTimeout);
+  }
   
-  database.ref("Members").on("value", (snap) => {
-    console.log("Members data received:", snap.val());
-    allMembers = snap.val() || {};
-    displayMembers();
-    updateDashboard();
-  }, (error) => {
-    console.error("Error loading members:", error);
-  });
+  dataLoadTimeout = setTimeout(() => {
+    database.ref("Books").off(); // Remove existing listeners
+    database.ref("Members").off();
+    database.ref("Transactions").off();
+    
+    database.ref("Books").on("value", (snap) => {
+      console.log("Books data received:", snap.val());
+      allBooks = snap.val() || {};
+      debounceUpdate('books');
+    }, (error) => {
+      console.error("Error loading books:", error);
+    });
+    
+    database.ref("Members").on("value", (snap) => {
+      console.log("Members data received:", snap.val());
+      allMembers = snap.val() || {};
+      debounceUpdate('members');
+    }, (error) => {
+      console.error("Error loading members:", error);
+    });
+    
+    database.ref("Transactions").on("value", (snap) => {
+      console.log("Transactions data received:", snap.val());
+      allTransactions = snap.val() || {};
+      debounceUpdate('transactions');
+    }, (error) => {
+      console.error("Error loading transactions:", error);
+    });
+  }, 100);
+}
+
+let updateTimeouts = {};
+
+function debounceUpdate(type) {
+  if (updateTimeouts[type]) {
+    clearTimeout(updateTimeouts[type]);
+  }
   
-  database.ref("Transactions").on("value", (snap) => {
-    console.log("Transactions data received:", snap.val());
-    allTransactions = snap.val() || {};
-    updateDashboard();
-    updateRecentActivities();
-    updateWeeklyChart();
-  }, (error) => {
-    console.error("Error loading transactions:", error);
-  });
+  updateTimeouts[type] = setTimeout(() => {
+    switch(type) {
+      case 'books':
+        displayBooks();
+        updateBookOptions();
+        updateDashboard();
+        updateCategoryChart();
+        break;
+      case 'members':
+        displayMembers();
+        updateDashboard();
+        break;
+      case 'transactions':
+        updateDashboard();
+        updateRecentActivities();
+        updateWeeklyChart();
+        break;
+    }
+  }, 200);
 }
 
 function updateDashboard() {
@@ -181,24 +248,45 @@ function updateDashboard() {
 }
 
 function displayBooks() {
-  const booksList = document.getElementById("booksList");
-  if (!booksList) return;
-  
-  const search = (document.getElementById("bookSearch")?.value || "").toLowerCase();
-  booksList.innerHTML = "";
-  
-  Object.entries(allBooks).forEach(([id, book]) => {
-    if (!search || 
-        (book.title && book.title.toLowerCase().includes(search)) ||
-        (book.author && book.author.toLowerCase().includes(search)) ||
-        (book.category && book.category.toLowerCase().includes(search))) {
-      const status = book.stock > 0 ? "Tersedia" : "Terpinjam";
-      const statusClass = book.stock > 0 ? "status-available" : "status-borrowed";
-      booksList.innerHTML += `
-        <div class="item-card">
-          <strong>${book.title || ""}</strong> <span class="stock-info">Stok: ${book.stock || 0}</span>
-          <br><small>Pengarang: ${book.author || ""}</small>
-          <br><small>Kategori: ${book.category || ""}</small>
+  try {
+    const booksList = document.getElementById("booksList");
+    if (!booksList) return;
+    
+    const searchEl = document.getElementById("bookSearch");
+    const search = (searchEl?.value || "").toLowerCase();
+    
+    // Clear existing content
+    booksList.innerHTML = "";
+    
+    if (!allBooks || Object.keys(allBooks).length === 0) {
+      booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku tersedia.</em></div>';
+      return;
+    }
+    
+    let hasResults = false;
+    
+    Object.entries(allBooks).forEach(([id, book]) => {
+      if (!book) return;
+      
+      const title = book.title || "";
+      const author = book.author || "";
+      const category = book.category || "";
+      
+      if (!search || 
+          title.toLowerCase().includes(search) ||
+          author.toLowerCase().includes(search) ||
+          category.toLowerCase().includes(search)) {
+        
+        hasResults = true;
+        const status = (book.stock || 0) > 0 ? "Tersedia" : "Terpinjam";
+        const statusClass = (book.stock || 0) > 0 ? "status-available" : "status-borrowed";
+        
+        const bookCard = document.createElement('div');
+        bookCard.className = 'item-card';
+        bookCard.innerHTML = `
+          <strong>${title}</strong> <span class="stock-info">Stok: ${book.stock || 0}</span>
+          <br><small>Pengarang: ${author}</small>
+          <br><small>Kategori: ${category}</small>
           <div>
             <span class="status-badge ${statusClass}">${status}</span>
           </div>
@@ -206,13 +294,20 @@ function displayBooks() {
             <button class="btn" onclick="editBook('${id}')">✏️ Edit</button>
             <button class="btn btn-danger" onclick="deleteBook('${id}')">🗑️ Hapus</button>
           </div>
-        </div>
-      `;
-    }
-  });
+        `;
+        booksList.appendChild(bookCard);
+      }
+    });
 
-  if (booksList.innerHTML === "") {
-    booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku yang ditemukan.</em></div>';
+    if (!hasResults) {
+      booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku yang ditemukan.</em></div>';
+    }
+  } catch (error) {
+    console.error("Error displaying books:", error);
+    const booksList = document.getElementById("booksList");
+    if (booksList) {
+      booksList.innerHTML = '<div class="item-card"><em>Error loading books.</em></div>';
+    }
   }
 }
 
@@ -232,40 +327,68 @@ function updateBookOptions() {
 }
 
 function displayMembers() {
-  const membersList = document.getElementById("membersList");
-  if (!membersList) return;
-  
-  const search = (document.getElementById("memberSearch")?.value || "").toLowerCase();
-  membersList.innerHTML = "";
+  try {
+    const membersList = document.getElementById("membersList");
+    if (!membersList) return;
+    
+    const searchEl = document.getElementById("memberSearch");
+    const search = (searchEl?.value || "").toLowerCase();
+    
+    // Clear existing content
+    membersList.innerHTML = "";
+    
+    if (!allMembers || Object.keys(allMembers).length === 0) {
+      membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota tersedia.</em></div>';
+      return;
+    }
+    
+    let hasResults = false;
 
-  Object.entries(allMembers).forEach(([id, member]) => {
-    if (!search ||
-        (member.name && member.name.toLowerCase().includes(search)) ||
-        (member.uid && member.uid.toLowerCase().includes(search)) ||
-        (member.email && member.email.toLowerCase().includes(search)) ||
-        (member.type && member.type.toLowerCase().includes(search))) {
-      membersList.innerHTML += `
-        <div class="item-card">
-          <strong>${member.name || ""}</strong>
+    Object.entries(allMembers).forEach(([id, member]) => {
+      if (!member) return;
+      
+      const name = member.name || "";
+      const uid = member.uid || "";
+      const email = member.email || "";
+      const type = member.type || "";
+      
+      if (!search ||
+          name.toLowerCase().includes(search) ||
+          uid.toLowerCase().includes(search) ||
+          email.toLowerCase().includes(search) ||
+          type.toLowerCase().includes(search)) {
+        
+        hasResults = true;
+        const memberCard = document.createElement('div');
+        memberCard.className = 'item-card';
+        memberCard.innerHTML = `
+          <strong>${name}</strong>
           <div>
-            <span class="status-badge status-available">UID: ${member.uid || ""}</span>
-            <span class="stock-info">Tipe: ${member.type || ""}</span>
+            <span class="status-badge status-available">UID: ${uid}</span>
+            <span class="stock-info">Tipe: ${type}</span>
           </div>
           <div>
-            <small>Email: ${member.email || "-"}</small><br>
+            <small>Email: ${email || "-"}</small><br>
             <small>Telepon: ${member.phone || "-"}</small>
           </div>
           <div>
             <button class="btn" onclick="editMember('${id}')">✏️ Edit</button>
             <button class="btn btn-danger" onclick="deleteMember('${id}')">🗑️ Hapus</button>
           </div>
-        </div>
-      `;
-    }
-  });
+        `;
+        membersList.appendChild(memberCard);
+      }
+    });
 
-  if (membersList.innerHTML === "") {
-    membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
+    if (!hasResults) {
+      membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
+    }
+  } catch (error) {
+    console.error("Error displaying members:", error);
+    const membersList = document.getElementById("membersList");
+    if (membersList) {
+      membersList.innerHTML = '<div class="item-card"><em>Error loading members.</em></div>';
+    }
   }
 }
 
