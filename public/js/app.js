@@ -22,31 +22,141 @@ let categoryChart = null;
 let weeklyChart = null;
 
 document.addEventListener("DOMContentLoaded", function () {
+  console.log("DOM loaded, initializing app...");
+  initializeForms();
   loadData();
   initializeCharts();
   setupRFIDListener();
 });
 
+function initializeForms() {
+  // Setup Book Form
+  const bookForm = document.getElementById("bookForm");
+  if (bookForm) {
+    bookForm.onsubmit = function (e) {
+      e.preventDefault();
+      console.log("Book form submitted");
+      
+      const data = {
+        title: document.getElementById("bookTitle").value,
+        author: document.getElementById("bookAuthor").value,
+        publisher: document.getElementById("bookPublisher").value,
+        year: document.getElementById("bookYear").value,
+        isbn: document.getElementById("bookISBN").value,
+        category: document.getElementById("bookCategory").value,
+        stock: parseInt(document.getElementById("bookStock").value) || 1,
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log("Book data:", data);
+      
+      if (currentEditId) {
+        database.ref("Books/" + currentEditId).update(data)
+          .then(() => {
+            console.log("Book updated successfully");
+            alert("Buku berhasil diperbarui!");
+          })
+          .catch((error) => {
+            console.error("Error updating book:", error);
+            alert("Gagal memperbarui buku: " + error.message);
+          });
+      } else {
+        database.ref("Books").push(data)
+          .then(() => {
+            console.log("Book added successfully");
+            alert("Buku berhasil ditambahkan!");
+          })
+          .catch((error) => {
+            console.error("Error adding book:", error);
+            alert("Gagal menambahkan buku: " + error.message);
+          });
+      }
+      
+      closeModal("bookModal");
+      this.reset();
+      currentEditId = null;
+    };
+  }
+
+  // Setup Member Form
+  const memberForm = document.getElementById("memberForm");
+  if (memberForm) {
+    memberForm.onsubmit = function (e) {
+      e.preventDefault();
+      console.log("Member form submitted");
+      
+      const data = {
+        uid: document.getElementById("memberUID").value,
+        name: document.getElementById("memberName").value,
+        email: document.getElementById("memberEmail").value,
+        phone: document.getElementById("memberPhone").value,
+        address: document.getElementById("memberAddress").value,
+        type: document.getElementById("memberType").value,
+        createdAt: new Date().toISOString()
+      };
+      
+      console.log("Member data:", data);
+      
+      if (currentEditId) {
+        database.ref("Members/" + currentEditId).update(data)
+          .then(() => {
+            console.log("Member updated successfully");
+            alert("Anggota berhasil diperbarui!");
+          })
+          .catch((error) => {
+            console.error("Error updating member:", error);
+            alert("Gagal memperbarui anggota: " + error.message);
+          });
+      } else {
+        database.ref("Members").push(data)
+          .then(() => {
+            console.log("Member added successfully");
+            alert("Anggota berhasil ditambahkan!");
+          })
+          .catch((error) => {
+            console.error("Error adding member:", error);
+            alert("Gagal menambahkan anggota: " + error.message);
+          });
+      }
+      
+      closeModal("memberModal");
+      this.reset();
+      currentEditId = null;
+    };
+  }
+}
+
 function loadData() {
+  console.log("Loading data from Firebase...");
+  
   database.ref("Books").on("value", (snap) => {
+    console.log("Books data received:", snap.val());
     allBooks = snap.val() || {};
     displayBooks();
     updateBookOptions();
     updateDashboard();
     updateCategoryChart();
+  }, (error) => {
+    console.error("Error loading books:", error);
   });
   
   database.ref("Members").on("value", (snap) => {
+    console.log("Members data received:", snap.val());
     allMembers = snap.val() || {};
     displayMembers();
     updateDashboard();
+  }, (error) => {
+    console.error("Error loading members:", error);
   });
   
   database.ref("Transactions").on("value", (snap) => {
+    console.log("Transactions data received:", snap.val());
     allTransactions = snap.val() || {};
     updateDashboard();
     updateRecentActivities();
     updateWeeklyChart();
+  }, (error) => {
+    console.error("Error loading transactions:", error);
   });
 }
 
@@ -72,6 +182,8 @@ function updateDashboard() {
 
 function displayBooks() {
   const booksList = document.getElementById("booksList");
+  if (!booksList) return;
+  
   const search = (document.getElementById("bookSearch")?.value || "").toLowerCase();
   booksList.innerHTML = "";
   
@@ -85,6 +197,8 @@ function displayBooks() {
       booksList.innerHTML += `
         <div class="item-card">
           <strong>${book.title || ""}</strong> <span class="stock-info">Stok: ${book.stock || 0}</span>
+          <br><small>Pengarang: ${book.author || ""}</small>
+          <br><small>Kategori: ${book.category || ""}</small>
           <div>
             <span class="status-badge ${statusClass}">${status}</span>
           </div>
@@ -96,6 +210,10 @@ function displayBooks() {
       `;
     }
   });
+
+  if (booksList.innerHTML === "") {
+    booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku yang ditemukan.</em></div>';
+  }
 }
 
 function searchBooks() {
@@ -115,6 +233,8 @@ function updateBookOptions() {
 
 function displayMembers() {
   const membersList = document.getElementById("membersList");
+  if (!membersList) return;
+  
   const search = (document.getElementById("memberSearch")?.value || "").toLowerCase();
   membersList.innerHTML = "";
 
@@ -153,34 +273,6 @@ function searchMembers() {
   displayMembers();
 }
 
-// CRUD Buku
-document.getElementById("bookForm").onsubmit = function (e) {
-  e.preventDefault();
-  const data = {
-    title: document.getElementById("bookTitle").value,
-    author: document.getElementById("bookAuthor").value,
-    publisher: document.getElementById("bookPublisher").value,
-    year: document.getElementById("bookYear").value,
-    isbn: document.getElementById("bookISBN").value,
-    category: document.getElementById("bookCategory").value,
-    stock: parseInt(document.getElementById("bookStock").value),
-  };
-  
-  if (currentEditId) {
-    database.ref("Books/" + currentEditId).update(data)
-      .then(() => console.log("Book updated successfully"))
-      .catch((error) => console.error("Error updating book:", error));
-  } else {
-    database.ref("Books").push(data)
-      .then(() => console.log("Book added successfully"))
-      .catch((error) => console.error("Error adding book:", error));
-  }
-  
-  closeModal("bookModal");
-  this.reset();
-  currentEditId = null;
-};
-
 function editBook(id) {
   currentEditId = id;
   const book = allBooks[id];
@@ -198,37 +290,16 @@ function editBook(id) {
 function deleteBook(id) {
   if (confirm("Yakin ingin menghapus buku ini?")) {
     database.ref("Books/" + id).remove()
-      .then(() => console.log("Book deleted successfully"))
-      .catch((error) => console.error("Error deleting book:", error));
+      .then(() => {
+        console.log("Book deleted successfully");
+        alert("Buku berhasil dihapus!");
+      })
+      .catch((error) => {
+        console.error("Error deleting book:", error);
+        alert("Gagal menghapus buku: " + error.message);
+      });
   }
 }
-
-// CRUD Anggota
-document.getElementById("memberForm").onsubmit = function (e) {
-  e.preventDefault();
-  const data = {
-    uid: document.getElementById("memberUID").value,
-    name: document.getElementById("memberName").value,
-    email: document.getElementById("memberEmail").value,
-    phone: document.getElementById("memberPhone").value,
-    address: document.getElementById("memberAddress").value,
-    type: document.getElementById("memberType").value,
-  };
-  
-  if (currentEditId) {
-    database.ref("Members/" + currentEditId).update(data)
-      .then(() => console.log("Member updated successfully"))
-      .catch((error) => console.error("Error updating member:", error));
-  } else {
-    database.ref("Members").push(data)
-      .then(() => console.log("Member added successfully"))
-      .catch((error) => console.error("Error adding member:", error));
-  }
-  
-  closeModal("memberModal");
-  this.reset();
-  currentEditId = null;
-};
 
 function editMember(id) {
   currentEditId = id;
@@ -246,8 +317,14 @@ function editMember(id) {
 function deleteMember(id) {
   if (confirm("Yakin ingin menghapus anggota ini?")) {
     database.ref("Members/" + id).remove()
-      .then(() => console.log("Member deleted successfully"))
-      .catch((error) => console.error("Error deleting member:", error));
+      .then(() => {
+        console.log("Member deleted successfully");
+        alert("Anggota berhasil dihapus!");
+      })
+      .catch((error) => {
+        console.error("Error deleting member:", error);
+        alert("Gagal menghapus anggota: " + error.message);
+      });
   }
 }
 
@@ -259,8 +336,14 @@ function showModal(id) {
 function closeModal(id) {
   document.getElementById(id).style.display = "none";
   currentEditId = null;
-  if (id === "bookModal") document.getElementById("bookForm").reset();
-  if (id === "memberModal") document.getElementById("memberForm").reset();
+  if (id === "bookModal") {
+    const bookForm = document.getElementById("bookForm");
+    if (bookForm) bookForm.reset();
+  }
+  if (id === "memberModal") {
+    const memberForm = document.getElementById("memberForm");
+    if (memberForm) memberForm.reset();
+  }
   document.getElementById("bookModalTitle").textContent = "Tambah Buku";
   document.getElementById("memberModalTitle").textContent = "Tambah Anggota";
 }
@@ -279,6 +362,8 @@ function verifyBorrowUID() {
     if (member.uid === uid) {
       found = true;
       statusText.textContent = `Status: UID ditemukan - ${member.name}`;
+      statusText.style.backgroundColor = "#d4edda";
+      statusText.style.color = "#155724";
       content.classList.remove("hidden");
       memberDetails.innerHTML = `
         <strong>${member.name}</strong><br>
@@ -288,10 +373,18 @@ function verifyBorrowUID() {
     }
   });
 
-  if (!found) {
+  if (!found && uid) {
     content.classList.add("hidden");
     memberDetails.innerHTML = "";
     statusText.textContent = "Status: UID tidak dikenali.";
+    statusText.style.backgroundColor = "#f8d7da";
+    statusText.style.color = "#721c24";
+  } else if (!uid) {
+    content.classList.add("hidden");
+    memberDetails.innerHTML = "";
+    statusText.textContent = "Status: Menunggu tap kartu anggota...";
+    statusText.style.backgroundColor = "#e3f2fd";
+    statusText.style.color = "#0d47a1";
   }
 }
 
@@ -314,7 +407,30 @@ function selectBookForBorrow() {
 
   const listItem = document.createElement("li");
   listItem.textContent = book.title;
+  listItem.innerHTML += ` <button onclick="removeSelectedBook('${bookId}')" style="margin-left: 10px; color: red;">❌</button>`;
   document.getElementById("selectedBooksList").appendChild(listItem);
+  
+  // Reset select
+  document.getElementById("borrowBookSelect").value = "";
+}
+
+function removeSelectedBook(bookId) {
+  selectedBooks = selectedBooks.filter(id => id !== bookId);
+  displaySelectedBooks();
+}
+
+function displaySelectedBooks() {
+  const list = document.getElementById("selectedBooksList");
+  list.innerHTML = "";
+  selectedBooks.forEach(bookId => {
+    const book = allBooks[bookId];
+    if (book) {
+      const listItem = document.createElement("li");
+      listItem.textContent = book.title;
+      listItem.innerHTML += ` <button onclick="removeSelectedBook('${bookId}')" style="margin-left: 10px; color: red;">❌</button>`;
+      list.appendChild(listItem);
+    }
+  });
 }
 
 function processBorrow() {
@@ -345,7 +461,8 @@ function processBorrow() {
   const tanggalPinjam = today.toISOString().slice(0, 10);
   const tanggalJatuhTempo = dueDate.toISOString().slice(0, 10);
 
-  let successCount = 0;
+  let processedCount = 0;
+  const totalBooks = selectedBooks.length;
 
   selectedBooks.forEach((bookId) => {
     const book = allBooks[bookId];
@@ -353,11 +470,13 @@ function processBorrow() {
       const trxData = {
         memberId,
         memberName,
+        uid,
         bookId,
         bookTitle: book.title,
         borrowDate: tanggalPinjam,
         dueDate: tanggalJatuhTempo,
         status: "borrowed",
+        createdAt: new Date().toISOString()
       };
 
       database.ref("Transactions").push(trxData)
@@ -367,27 +486,27 @@ function processBorrow() {
           });
         })
         .then(() => {
-          successCount++;
-          console.log("Transaction processed successfully");
+          processedCount++;
+          console.log(`Transaction processed successfully for book: ${book.title}`);
+          
+          if (processedCount === totalBooks) {
+            alert(`Peminjaman ${processedCount} buku berhasil!`);
+            resetBorrowForm();
+          }
         })
         .catch((error) => {
           console.error("Error processing transaction:", error);
+          alert("Gagal memproses peminjaman: " + error.message);
         });
     }
   });
-
-  if (successCount > 0) {
-    alert(`Peminjaman ${successCount} buku berhasil!`);
-  } else {
-    alert("Tidak ada buku yang berhasil dipinjam.");
-  }
-
-  resetBorrowForm();
 }
 
 function resetBorrowForm() {
   document.getElementById("borrowUID").value = "";
   document.getElementById("borrowRfidStatus").textContent = "Status: Menunggu tap kartu anggota...";
+  document.getElementById("borrowRfidStatus").style.backgroundColor = "#e3f2fd";
+  document.getElementById("borrowRfidStatus").style.color = "#0d47a1";
   document.getElementById("borrowSectionContent").classList.add("hidden");
   document.getElementById("borrowMemberDetails").innerHTML = "";
   document.getElementById("selectedBooksList").innerHTML = "";
@@ -397,7 +516,7 @@ function resetBorrowForm() {
 
 // Pengembalian
 function loadMemberForReturn() {
-  const uid = document.getElementById("returnUID").value;
+  const uid = document.getElementById("returnUID").value.trim();
   let memberId = null;
   Object.entries(allMembers).forEach(([id, member]) => {
     if (member.uid === uid) memberId = id;
@@ -417,29 +536,40 @@ function loadMemberForReturn() {
           <span>
             <strong>${trx.bookTitle}</strong>
             <br>
+            <small>Dipinjam: ${trx.borrowDate}</small>
+            <br>
             <small>Jatuh tempo: ${trx.dueDate}</small>
+            ${overdue ? '<br><small style="color: red;">⚠️ TERLAMBAT</small>' : ''}
           </span>
-          <button class="btn btn-success" onclick="processReturn('${trxId}')">Kembalikan</button>
+          <button class="btn btn-success" onclick="processReturn('${trxId}')">📥 Kembalikan</button>
         </div>
       `;
     }
   });
   
   document.getElementById("returnMemberInfo").classList.toggle("hidden", !found);
-  if (!found) borrowedBooksList.innerHTML = "<em>Tidak ada buku yang sedang dipinjam.</em>";
+  if (!found) {
+    borrowedBooksList.innerHTML = "<em>Tidak ada buku yang sedang dipinjam.</em>";
+  }
 }
 
 function processReturn(trxId) {
-  database.ref("Transactions/" + trxId + "/status").set("returned")
+  const trx = allTransactions[trxId];
+  if (!trx) {
+    alert("Data transaksi tidak ditemukan!");
+    return;
+  }
+
+  database.ref("Transactions/" + trxId).update({
+    status: "returned",
+    returnDate: new Date().toISOString().slice(0, 10)
+  })
     .then(() => {
-      const trx = allTransactions[trxId];
-      if (trx) {
-        const book = allBooks[trx.bookId];
-        if (book) {
-          return database.ref("Books/" + trx.bookId).update({ 
-            stock: Number(book.stock) + 1 
-          });
-        }
+      const book = allBooks[trx.bookId];
+      if (book) {
+        return database.ref("Books/" + trx.bookId).update({ 
+          stock: Number(book.stock) + 1 
+        });
       }
     })
     .then(() => {
@@ -448,29 +578,60 @@ function processReturn(trxId) {
     })
     .catch((error) => {
       console.error("Error processing return:", error);
-      alert("Gagal memproses pengembalian!");
+      alert("Gagal memproses pengembalian: " + error.message);
     });
 }
 
 // Charts
 function initializeCharts() {
-  const ctx1 = document.getElementById("categoryChart").getContext("2d");
-  categoryChart = new Chart(ctx1, {
-    type: "doughnut",
-    data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
-  });
-  
-  const ctx2 = document.getElementById("weeklyChart").getContext("2d");
-  weeklyChart = new Chart(ctx2, {
-    type: "bar",
-    data: {
-      labels: [],
-      datasets: [{ label: "Peminjaman", data: [], backgroundColor: "#667eea" }],
-    },
-  });
+  try {
+    const ctx1 = document.getElementById("categoryChart");
+    if (ctx1) {
+      categoryChart = new Chart(ctx1.getContext("2d"), {
+        type: "doughnut",
+        data: { 
+          labels: [], 
+          datasets: [{ 
+            data: [], 
+            backgroundColor: [
+              "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
+              "#d63031", "#e17055", "#0984e3", "#636e72"
+            ]
+          }] 
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+    
+    const ctx2 = document.getElementById("weeklyChart");
+    if (ctx2) {
+      weeklyChart = new Chart(ctx2.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [{ 
+            label: "Peminjaman", 
+            data: [], 
+            backgroundColor: "#667eea" 
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error initializing charts:", error);
+  }
 }
 
 function updateCategoryChart() {
+  if (!categoryChart) return;
+  
   const categoryCount = {};
   Object.values(allBooks).forEach((book) => {
     const cat = book.category || "Lainnya";
@@ -479,14 +640,12 @@ function updateCategoryChart() {
   
   categoryChart.data.labels = Object.keys(categoryCount);
   categoryChart.data.datasets[0].data = Object.values(categoryCount);
-  categoryChart.data.datasets[0].backgroundColor = [
-    "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
-    "#d63031", "#e17055", "#0984e3", "#636e72",
-  ];
   categoryChart.update();
 }
 
 function updateWeeklyChart() {
+  if (!weeklyChart) return;
+  
   const days = [];
   const counts = [];
   
@@ -510,6 +669,8 @@ function updateWeeklyChart() {
 
 function updateRecentActivities() {
   const container = document.getElementById("recentActivities");
+  if (!container) return;
+  
   const sorted = Object.values(allTransactions).sort((a, b) =>
     (b.borrowDate || "").localeCompare(a.borrowDate || "")
   );
@@ -529,19 +690,26 @@ function updateRecentActivities() {
     `;
   });
   
-  if (!container.innerHTML) container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
+  if (!container.innerHTML) {
+    container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
+  }
 }
 
 // Navigation
 function showSection(section) {
   ["dashboard", "books", "members", "borrow", "return", "reports", "settings"].forEach((id) => {
-    document.getElementById(id + "-section").classList.add("hidden");
+    const element = document.getElementById(id + "-section");
+    if (element) element.classList.add("hidden");
   });
-  document.getElementById(section + "-section").classList.remove("hidden");
+  
+  const targetSection = document.getElementById(section + "-section");
+  if (targetSection) targetSection.classList.remove("hidden");
   
   document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    if (btn.textContent.toLowerCase().includes(section)) btn.classList.add("active");
+    if (btn.onclick && btn.onclick.toString().includes(section)) {
+      btn.classList.add("active");
+    }
   });
 }
 
@@ -555,11 +723,14 @@ window.onclick = function (event) {
 
 // RFID Handler integration
 function setupRFIDListener() {
+  console.log("Setting up RFID listener...");
   const rfidRef = database.ref("current_rfid");
 
   rfidRef.on("value", async (snapshot) => {
     const data = snapshot.val();
     if (data && data.uid) {
+      console.log("RFID data received:", data.uid);
+      
       // Jika berada di halaman Peminjaman
       const borrowSection = document.getElementById("borrow-section");
       if (borrowSection && !borrowSection.classList.contains("hidden")) {
@@ -578,8 +749,12 @@ function setupRFIDListener() {
       const statusElement = document.getElementById("borrowRfidStatus");
       if (statusElement) {
         statusElement.textContent = "Status: Memproses UID...";
-        statusElement.style.color = "#4CAF50";
-        setTimeout(() => (statusElement.style.color = ""), 2000);
+        statusElement.style.backgroundColor = "#d4edda";
+        statusElement.style.color = "#155724";
+        setTimeout(() => {
+          statusElement.style.backgroundColor = "";
+          statusElement.style.color = "";
+        }, 2000);
       }
 
       // Reset UID agar bisa tap kartu berikutnya
@@ -588,5 +763,7 @@ function setupRFIDListener() {
           .catch((error) => console.error("Error clearing RFID:", error));
       }, 2000);
     }
+  }, (error) => {
+    console.error("Error in RFID listener:", error);
   });
 }
