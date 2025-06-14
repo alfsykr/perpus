@@ -35,7 +35,7 @@ function initializeForms() {
     // Setup Book Form
     const bookForm = document.getElementById("bookForm");
     if (bookForm) {
-      bookForm.onsubmit = function (e) {
+      bookForm.addEventListener('submit', function (e) {
         e.preventDefault();
         console.log("Book form submitted");
         
@@ -60,6 +60,7 @@ function initializeForms() {
           isbn: isbnEl ? isbnEl.value : "",
           category: categoryEl.value,
           stock: parseInt(stockEl.value) || 1,
+          status: "available",
           createdAt: new Date().toISOString()
         };
         
@@ -71,7 +72,7 @@ function initializeForms() {
               console.log("Book updated successfully");
               alert("Buku berhasil diperbarui!");
               closeModal("bookModal");
-              this.reset();
+              bookForm.reset();
               currentEditId = null;
             })
             .catch((error) => {
@@ -84,7 +85,7 @@ function initializeForms() {
               console.log("Book added successfully");
               alert("Buku berhasil ditambahkan!");
               closeModal("bookModal");
-              this.reset();
+              bookForm.reset();
               currentEditId = null;
             })
             .catch((error) => {
@@ -92,13 +93,13 @@ function initializeForms() {
               alert("Gagal menambahkan buku: " + error.message);
             });
         }
-      };
+      });
     }
 
     // Setup Member Form
     const memberForm = document.getElementById("memberForm");
     if (memberForm) {
-      memberForm.onsubmit = function (e) {
+      memberForm.addEventListener('submit', function (e) {
         e.preventDefault();
         console.log("Member form submitted");
         
@@ -121,6 +122,7 @@ function initializeForms() {
           phone: phoneEl ? phoneEl.value : "",
           address: addressEl ? addressEl.value : "",
           type: typeEl.value,
+          status: "active",
           createdAt: new Date().toISOString()
         };
         
@@ -132,7 +134,7 @@ function initializeForms() {
               console.log("Member updated successfully");
               alert("Anggota berhasil diperbarui!");
               closeModal("memberModal");
-              this.reset();
+              memberForm.reset();
               currentEditId = null;
             })
             .catch((error) => {
@@ -145,7 +147,7 @@ function initializeForms() {
               console.log("Member added successfully");
               alert("Anggota berhasil ditambahkan!");
               closeModal("memberModal");
-              this.reset();
+              memberForm.reset();
               currentEditId = null;
             })
             .catch((error) => {
@@ -153,50 +155,49 @@ function initializeForms() {
               alert("Gagal menambahkan anggota: " + error.message);
             });
         }
-      };
+      });
     }
-  }, 100);
+  }, 500);
 }
 
-let dataLoadTimeout = null;
+let dataLoaded = false;
 
 function loadData() {
   console.log("Loading data from Firebase...");
   
-  // Debounce data loading to prevent infinite loops
-  if (dataLoadTimeout) {
-    clearTimeout(dataLoadTimeout);
+  if (dataLoaded) {
+    console.log("Data already loading, skipping...");
+    return;
   }
   
-  dataLoadTimeout = setTimeout(() => {
-    database.ref("Books").off(); // Remove existing listeners
-    database.ref("Members").off();
-    database.ref("Transactions").off();
-    
-    database.ref("Books").on("value", (snap) => {
-      console.log("Books data received:", snap.val());
-      allBooks = snap.val() || {};
-      debounceUpdate('books');
-    }, (error) => {
-      console.error("Error loading books:", error);
-    });
-    
-    database.ref("Members").on("value", (snap) => {
-      console.log("Members data received:", snap.val());
-      allMembers = snap.val() || {};
-      debounceUpdate('members');
-    }, (error) => {
-      console.error("Error loading members:", error);
-    });
-    
-    database.ref("Transactions").on("value", (snap) => {
-      console.log("Transactions data received:", snap.val());
-      allTransactions = snap.val() || {};
-      debounceUpdate('transactions');
-    }, (error) => {
-      console.error("Error loading transactions:", error);
-    });
-  }, 100);
+  dataLoaded = true;
+  
+  // Load Books
+  database.ref("Books").on("value", (snap) => {
+    console.log("Books data received:", snap.val());
+    allBooks = snap.val() || {};
+    debounceUpdate('books');
+  }, (error) => {
+    console.error("Error loading books:", error);
+  });
+  
+  // Load Members
+  database.ref("Members").on("value", (snap) => {
+    console.log("Members data received:", snap.val());
+    allMembers = snap.val() || {};
+    debounceUpdate('members');
+  }, (error) => {
+    console.error("Error loading members:", error);
+  });
+  
+  // Load Transactions
+  database.ref("Transactions").on("value", (snap) => {
+    console.log("Transactions data received:", snap.val());
+    allTransactions = snap.val() || {};
+    debounceUpdate('transactions');
+  }, (error) => {
+    console.error("Error loading transactions:", error);
+  });
 }
 
 let updateTimeouts = {};
@@ -235,23 +236,51 @@ function debounceUpdate(type) {
 }
 
 function updateDashboard() {
-  let totalBooks = 0;
-  Object.values(allBooks).forEach((book) => {
-    totalBooks += Number(book.stock || 0);
-  });
-  document.getElementById("totalBooks").textContent = totalBooks;
-  document.getElementById("totalMembers").textContent = Object.keys(allMembers).length;
+  try {
+    // Total Books - count all available books
+    let totalBooks = 0;
+    Object.values(allBooks).forEach((book) => {
+      if (book && typeof book.stock === 'number') {
+        totalBooks += book.stock;
+      } else if (book && book.stock) {
+        totalBooks += parseInt(book.stock) || 0;
+      }
+    });
+    
+    // Update dashboard stats
+    const totalBooksEl = document.getElementById("totalBooks");
+    const totalMembersEl = document.getElementById("totalMembers");
+    const borrowedBooksEl = document.getElementById("borrowedBooks");
+    const overdueBooksEl = document.getElementById("overdueBooks");
+    
+    if (totalBooksEl) totalBooksEl.textContent = totalBooks;
+    if (totalMembersEl) totalMembersEl.textContent = Object.keys(allMembers).length;
 
-  let borrowedBooks = 0, overdueBooks = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  Object.values(allTransactions).forEach((trx) => {
-    if (trx.status === "borrowed") {
-      borrowedBooks++;
-      if (trx.dueDate && trx.dueDate < today) overdueBooks++;
-    }
-  });
-  document.getElementById("borrowedBooks").textContent = borrowedBooks;
-  document.getElementById("overdueBooks").textContent = overdueBooks;
+    // Count borrowed and overdue books
+    let borrowedBooks = 0, overdueBooks = 0;
+    const today = new Date().toISOString().slice(0, 10);
+    
+    Object.values(allTransactions).forEach((trx) => {
+      if (trx && trx.status === "borrowed") {
+        borrowedBooks++;
+        if (trx.dueDate && trx.dueDate < today) {
+          overdueBooks++;
+        }
+      }
+    });
+    
+    if (borrowedBooksEl) borrowedBooksEl.textContent = borrowedBooks;
+    if (overdueBooksEl) overdueBooksEl.textContent = overdueBooks;
+    
+    console.log("Dashboard updated:", {
+      totalBooks,
+      totalMembers: Object.keys(allMembers).length,
+      borrowedBooks,
+      overdueBooks
+    });
+  } catch (error) {
+    console.error("Error updating dashboard:", error);
+  }
 }
 
 function displayBooks() {
@@ -717,73 +746,76 @@ function initializeCharts() {
   try {
     console.log("Initializing charts...");
     
-    const ctx1 = document.getElementById("categoryChart");
-    if (ctx1) {
-      categoryChart = new Chart(ctx1.getContext("2d"), {
-        type: "doughnut",
-        data: { 
-          labels: ["Sejarah", "Sains"], 
-          datasets: [{ 
-            data: [2, 5], 
-            backgroundColor: [
-              "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
-              "#d63031", "#e17055", "#0984e3", "#636e72"
-            ],
-            borderWidth: 0
-          }] 
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                usePointStyle: true,
-                padding: 20
-              }
-            }
-          }
-        }
-      });
-      console.log("Category chart initialized");
-    }
-    
-    const ctx2 = document.getElementById("weeklyChart");
-    if (ctx2) {
-      weeklyChart = new Chart(ctx2.getContext("2d"), {
-        type: "bar",
-        data: {
-          labels: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
-          datasets: [{ 
-            label: "Peminjaman", 
-            data: [0, 1, 0, 0, 1, 0, 0], 
-            backgroundColor: "#667eea",
-            borderColor: "#667eea",
-            borderWidth: 1
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                stepSize: 1
-              }
-            }
+    // Wait for DOM to be ready
+    setTimeout(() => {
+      const ctx1 = document.getElementById("categoryChart");
+      if (ctx1 && !categoryChart) {
+        categoryChart = new Chart(ctx1.getContext("2d"), {
+          type: "doughnut",
+          data: { 
+            labels: ["Sejarah", "Sains"], 
+            datasets: [{ 
+              data: [2, 5], 
+              backgroundColor: [
+                "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
+                "#d63031", "#e17055", "#0984e3", "#636e72"
+              ],
+              borderWidth: 0
+            }] 
           },
-          plugins: {
-            legend: {
-              display: true,
-              position: 'top'
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  usePointStyle: true,
+                  padding: 20
+                }
+              }
             }
           }
-        }
-      });
-      console.log("Weekly chart initialized");
-    }
+        });
+        console.log("Category chart initialized");
+      }
+      
+      const ctx2 = document.getElementById("weeklyChart");
+      if (ctx2 && !weeklyChart) {
+        weeklyChart = new Chart(ctx2.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
+            datasets: [{ 
+              label: "Peminjaman", 
+              data: [0, 1, 0, 0, 1, 0, 0], 
+              backgroundColor: "#667eea",
+              borderColor: "#667eea",
+              borderWidth: 1
+            }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top'
+              }
+            }
+          }
+        });
+        console.log("Weekly chart initialized");
+      }
+    }, 1000);
   } catch (error) {
     console.error("Error initializing charts:", error);
   }
