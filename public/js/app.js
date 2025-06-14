@@ -1,4 +1,3 @@
-
 // Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB1HKFjB7AZFLZ-P-iixMd9SdGA5njXN4c",
@@ -35,10 +34,10 @@ function initializeForms() {
     // Setup Book Form
     const bookForm = document.getElementById("bookForm");
     if (bookForm) {
-      bookForm.addEventListener('submit', function (e) {
+      bookForm.addEventListener("submit", function (e) {
         e.preventDefault();
         console.log("Book form submitted");
-        
+
         const titleEl = document.getElementById("bookTitle");
         const authorEl = document.getElementById("bookAuthor");
         const publisherEl = document.getElementById("bookPublisher");
@@ -46,12 +45,12 @@ function initializeForms() {
         const isbnEl = document.getElementById("bookISBN");
         const categoryEl = document.getElementById("bookCategory");
         const stockEl = document.getElementById("bookStock");
-        
+
         if (!titleEl || !authorEl || !categoryEl || !stockEl) {
           console.error("Book form elements not found");
           return;
         }
-        
+
         const data = {
           title: titleEl.value,
           author: authorEl.value,
@@ -61,13 +60,15 @@ function initializeForms() {
           category: categoryEl.value,
           stock: parseInt(stockEl.value) || 1,
           status: "available",
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
-        
+
         console.log("Book data:", data);
-        
+
         if (currentEditId) {
-          database.ref("Books/" + currentEditId).update(data)
+          database
+            .ref("Books/" + currentEditId)
+            .update(data)
             .then(() => {
               console.log("Book updated successfully");
               alert("Buku berhasil diperbarui!");
@@ -80,7 +81,9 @@ function initializeForms() {
               alert("Gagal memperbarui buku: " + error.message);
             });
         } else {
-          database.ref("Books").push(data)
+          database
+            .ref("Books")
+            .push(data)
             .then(() => {
               console.log("Book added successfully");
               alert("Buku berhasil ditambahkan!");
@@ -99,22 +102,22 @@ function initializeForms() {
     // Setup Member Form
     const memberForm = document.getElementById("memberForm");
     if (memberForm) {
-      memberForm.addEventListener('submit', function (e) {
+      memberForm.addEventListener("submit", function (e) {
         e.preventDefault();
         console.log("Member form submitted");
-        
+
         const uidEl = document.getElementById("memberUID");
         const nameEl = document.getElementById("memberName");
         const emailEl = document.getElementById("memberEmail");
         const phoneEl = document.getElementById("memberPhone");
         const addressEl = document.getElementById("memberAddress");
         const typeEl = document.getElementById("memberType");
-        
+
         if (!uidEl || !nameEl || !typeEl) {
           console.error("Member form elements not found");
           return;
         }
-        
+
         const data = {
           uid: uidEl.value,
           name: nameEl.value,
@@ -123,13 +126,15 @@ function initializeForms() {
           address: addressEl ? addressEl.value : "",
           type: typeEl.value,
           status: "active",
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
-        
+
         console.log("Member data:", data);
-        
+
         if (currentEditId) {
-          database.ref("Members/" + currentEditId).update(data)
+          database
+            .ref("Members/" + currentEditId)
+            .update(data)
             .then(() => {
               console.log("Member updated successfully");
               alert("Anggota berhasil diperbarui!");
@@ -142,7 +147,9 @@ function initializeForms() {
               alert("Gagal memperbarui anggota: " + error.message);
             });
         } else {
-          database.ref("Members").push(data)
+          database
+            .ref("Members")
+            .push(data)
             .then(() => {
               console.log("Member added successfully");
               alert("Anggota berhasil ditambahkan!");
@@ -164,40 +171,52 @@ let dataLoaded = false;
 
 function loadData() {
   console.log("Loading data from Firebase...");
-  
+
   if (dataLoaded) {
     console.log("Data already loading, skipping...");
     return;
   }
-  
+
   dataLoaded = true;
-  
+
   // Load Books
-  database.ref("Books").on("value", (snap) => {
-    console.log("Books data received:", snap.val());
-    allBooks = snap.val() || {};
-    debounceUpdate('books');
-  }, (error) => {
-    console.error("Error loading books:", error);
-  });
-  
+  database.ref("Books").on(
+    "value",
+    (snap) => {
+      console.log("Books data received:", snap.val());
+      allBooks = snap.val() || {};
+      debounceUpdate("books");
+    },
+    (error) => {
+      console.error("Error loading books:", error);
+    }
+  );
+
   // Load Members
-  database.ref("Members").on("value", (snap) => {
-    console.log("Members data received:", snap.val());
-    allMembers = snap.val() || {};
-    debounceUpdate('members');
-  }, (error) => {
-    console.error("Error loading members:", error);
-  });
-  
+  database.ref("Members").on(
+    "value",
+    (snap) => {
+      console.log("Members data received:", snap.val());
+      allMembers = snap.val() || {};
+      debounceUpdate("members");
+    },
+    (error) => {
+      console.error("Error loading members:", error);
+    }
+  );
+
   // Load Transactions
-  database.ref("Transactions").on("value", (snap) => {
-    console.log("Transactions data received:", snap.val());
-    allTransactions = snap.val() || {};
-    debounceUpdate('transactions');
-  }, (error) => {
-    console.error("Error loading transactions:", error);
-  });
+  database.ref("Transactions").on(
+    "value",
+    (snap) => {
+      console.log("Transactions data received:", snap.val());
+      allTransactions = snap.val() || {};
+      debounceUpdate("transactions");
+    },
+    (error) => {
+      console.error("Error loading transactions:", error);
+    }
+  );
 }
 
 let updateTimeouts = {};
@@ -206,23 +225,23 @@ function debounceUpdate(type) {
   if (updateTimeouts[type]) {
     clearTimeout(updateTimeouts[type]);
   }
-  
+
   updateTimeouts[type] = setTimeout(() => {
     try {
       console.log(`Updating ${type}...`);
-      switch(type) {
-        case 'books':
+      switch (type) {
+        case "books":
           displayBooks();
           updateBookOptions();
           updateDashboard();
           // Add delay before updating chart to ensure DOM is ready
           setTimeout(() => updateCategoryChart(), 100);
           break;
-        case 'members':
+        case "members":
           displayMembers();
           updateDashboard();
           break;
-        case 'transactions':
+        case "transactions":
           updateDashboard();
           updateRecentActivities();
           // Add delay before updating chart to ensure DOM is ready
@@ -240,26 +259,28 @@ function updateDashboard() {
     // Total Books - count all available books
     let totalBooks = 0;
     Object.values(allBooks).forEach((book) => {
-      if (book && typeof book.stock === 'number') {
+      if (book && typeof book.stock === "number") {
         totalBooks += book.stock;
       } else if (book && book.stock) {
         totalBooks += parseInt(book.stock) || 0;
       }
     });
-    
+
     // Update dashboard stats
     const totalBooksEl = document.getElementById("totalBooks");
     const totalMembersEl = document.getElementById("totalMembers");
     const borrowedBooksEl = document.getElementById("borrowedBooks");
     const overdueBooksEl = document.getElementById("overdueBooks");
-    
+
     if (totalBooksEl) totalBooksEl.textContent = totalBooks;
-    if (totalMembersEl) totalMembersEl.textContent = Object.keys(allMembers).length;
+    if (totalMembersEl)
+      totalMembersEl.textContent = Object.keys(allMembers).length;
 
     // Count borrowed and overdue books
-    let borrowedBooks = 0, overdueBooks = 0;
+    let borrowedBooks = 0,
+      overdueBooks = 0;
     const today = new Date().toISOString().slice(0, 10);
-    
+
     Object.values(allTransactions).forEach((trx) => {
       if (trx && trx.status === "borrowed") {
         borrowedBooks++;
@@ -268,15 +289,15 @@ function updateDashboard() {
         }
       }
     });
-    
+
     if (borrowedBooksEl) borrowedBooksEl.textContent = borrowedBooks;
     if (overdueBooksEl) overdueBooksEl.textContent = overdueBooks;
-    
+
     console.log("Dashboard updated:", {
       totalBooks,
       totalMembers: Object.keys(allMembers).length,
       borrowedBooks,
-      overdueBooks
+      overdueBooks,
     });
   } catch (error) {
     console.error("Error updating dashboard:", error);
@@ -287,40 +308,45 @@ function displayBooks() {
   try {
     const booksList = document.getElementById("booksList");
     if (!booksList) return;
-    
+
     const searchEl = document.getElementById("bookSearch");
     const search = (searchEl?.value || "").toLowerCase();
-    
+
     // Clear existing content
     booksList.innerHTML = "";
-    
+
     if (!allBooks || Object.keys(allBooks).length === 0) {
-      booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku tersedia.</em></div>';
+      booksList.innerHTML =
+        '<div class="item-card"><em>Tidak ada buku tersedia.</em></div>';
       return;
     }
-    
+
     let hasResults = false;
-    
+
     Object.entries(allBooks).forEach(([id, book]) => {
       if (!book) return;
-      
+
       const title = book.title || "";
       const author = book.author || "";
       const category = book.category || "";
-      
-      if (!search || 
-          title.toLowerCase().includes(search) ||
-          author.toLowerCase().includes(search) ||
-          category.toLowerCase().includes(search)) {
-        
+
+      if (
+        !search ||
+        title.toLowerCase().includes(search) ||
+        author.toLowerCase().includes(search) ||
+        category.toLowerCase().includes(search)
+      ) {
         hasResults = true;
         const status = (book.stock || 0) > 0 ? "Tersedia" : "Terpinjam";
-        const statusClass = (book.stock || 0) > 0 ? "status-available" : "status-borrowed";
-        
-        const bookCard = document.createElement('div');
-        bookCard.className = 'item-card';
+        const statusClass =
+          (book.stock || 0) > 0 ? "status-available" : "status-borrowed";
+
+        const bookCard = document.createElement("div");
+        bookCard.className = "item-card";
         bookCard.innerHTML = `
-          <strong>${title}</strong> <span class="stock-info">Stok: ${book.stock || 0}</span>
+          <strong>${title}</strong> <span class="stock-info">Stok: ${
+          book.stock || 0
+        }</span>
           <br><small>Pengarang: ${author}</small>
           <br><small>Kategori: ${category}</small>
           <div>
@@ -336,13 +362,15 @@ function displayBooks() {
     });
 
     if (!hasResults) {
-      booksList.innerHTML = '<div class="item-card"><em>Tidak ada buku yang ditemukan.</em></div>';
+      booksList.innerHTML =
+        '<div class="item-card"><em>Tidak ada buku yang ditemukan.</em></div>';
     }
   } catch (error) {
     console.error("Error displaying books:", error);
     const booksList = document.getElementById("booksList");
     if (booksList) {
-      booksList.innerHTML = '<div class="item-card"><em>Error loading books.</em></div>';
+      booksList.innerHTML =
+        '<div class="item-card"><em>Error loading books.</em></div>';
     }
   }
 }
@@ -366,37 +394,39 @@ function displayMembers() {
   try {
     const membersList = document.getElementById("membersList");
     if (!membersList) return;
-    
+
     const searchEl = document.getElementById("memberSearch");
     const search = (searchEl?.value || "").toLowerCase();
-    
+
     // Clear existing content
     membersList.innerHTML = "";
-    
+
     if (!allMembers || Object.keys(allMembers).length === 0) {
-      membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota tersedia.</em></div>';
+      membersList.innerHTML =
+        '<div class="item-card"><em>Tidak ada anggota tersedia.</em></div>';
       return;
     }
-    
+
     let hasResults = false;
 
     Object.entries(allMembers).forEach(([id, member]) => {
       if (!member) return;
-      
+
       const name = member.name || "";
       const uid = member.uid || "";
       const email = member.email || "";
       const type = member.type || "";
-      
-      if (!search ||
-          name.toLowerCase().includes(search) ||
-          uid.toLowerCase().includes(search) ||
-          email.toLowerCase().includes(search) ||
-          type.toLowerCase().includes(search)) {
-        
+
+      if (
+        !search ||
+        name.toLowerCase().includes(search) ||
+        uid.toLowerCase().includes(search) ||
+        email.toLowerCase().includes(search) ||
+        type.toLowerCase().includes(search)
+      ) {
         hasResults = true;
-        const memberCard = document.createElement('div');
-        memberCard.className = 'item-card';
+        const memberCard = document.createElement("div");
+        memberCard.className = "item-card";
         memberCard.innerHTML = `
           <strong>${name}</strong>
           <div>
@@ -417,13 +447,15 @@ function displayMembers() {
     });
 
     if (!hasResults) {
-      membersList.innerHTML = '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
+      membersList.innerHTML =
+        '<div class="item-card"><em>Tidak ada anggota yang ditemukan.</em></div>';
     }
   } catch (error) {
     console.error("Error displaying members:", error);
     const membersList = document.getElementById("membersList");
     if (membersList) {
-      membersList.innerHTML = '<div class="item-card"><em>Error loading members.</em></div>';
+      membersList.innerHTML =
+        '<div class="item-card"><em>Error loading members.</em></div>';
     }
   }
 }
@@ -448,7 +480,9 @@ function editBook(id) {
 
 function deleteBook(id) {
   if (confirm("Yakin ingin menghapus buku ini?")) {
-    database.ref("Books/" + id).remove()
+    database
+      .ref("Books/" + id)
+      .remove()
       .then(() => {
         console.log("Book deleted successfully");
         alert("Buku berhasil dihapus!");
@@ -475,7 +509,9 @@ function editMember(id) {
 
 function deleteMember(id) {
   if (confirm("Yakin ingin menghapus anggota ini?")) {
-    database.ref("Members/" + id).remove()
+    database
+      .ref("Members/" + id)
+      .remove()
       .then(() => {
         console.log("Member deleted successfully");
         alert("Anggota berhasil dihapus!");
@@ -568,20 +604,20 @@ function selectBookForBorrow() {
   listItem.textContent = book.title;
   listItem.innerHTML += ` <button onclick="removeSelectedBook('${bookId}')" style="margin-left: 10px; color: red;">❌</button>`;
   document.getElementById("selectedBooksList").appendChild(listItem);
-  
+
   // Reset select
   document.getElementById("borrowBookSelect").value = "";
 }
 
 function removeSelectedBook(bookId) {
-  selectedBooks = selectedBooks.filter(id => id !== bookId);
+  selectedBooks = selectedBooks.filter((id) => id !== bookId);
   displaySelectedBooks();
 }
 
 function displaySelectedBooks() {
   const list = document.getElementById("selectedBooksList");
   list.innerHTML = "";
-  selectedBooks.forEach(bookId => {
+  selectedBooks.forEach((bookId) => {
     const book = allBooks[bookId];
     if (book) {
       const listItem = document.createElement("li");
@@ -635,10 +671,12 @@ function processBorrow() {
         borrowDate: tanggalPinjam,
         dueDate: tanggalJatuhTempo,
         status: "borrowed",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
-      database.ref("Transactions").push(trxData)
+      database
+        .ref("Transactions")
+        .push(trxData)
         .then(() => {
           return database.ref("Books/" + bookId).update({
             stock: Number(book.stock) - 1,
@@ -646,8 +684,10 @@ function processBorrow() {
         })
         .then(() => {
           processedCount++;
-          console.log(`Transaction processed successfully for book: ${book.title}`);
-          
+          console.log(
+            `Transaction processed successfully for book: ${book.title}`
+          );
+
           if (processedCount === totalBooks) {
             alert(`Peminjaman ${processedCount} buku berhasil!`);
             resetBorrowForm();
@@ -663,7 +703,8 @@ function processBorrow() {
 
 function resetBorrowForm() {
   document.getElementById("borrowUID").value = "";
-  document.getElementById("borrowRfidStatus").textContent = "Status: Menunggu tap kartu anggota...";
+  document.getElementById("borrowRfidStatus").textContent =
+    "Status: Menunggu tap kartu anggota...";
   document.getElementById("borrowRfidStatus").style.backgroundColor = "#e3f2fd";
   document.getElementById("borrowRfidStatus").style.color = "#0d47a1";
   document.getElementById("borrowSectionContent").classList.add("hidden");
@@ -680,11 +721,11 @@ function loadMemberForReturn() {
   Object.entries(allMembers).forEach(([id, member]) => {
     if (member.uid === uid) memberId = id;
   });
-  
+
   const borrowedBooksList = document.getElementById("borrowedBooksList");
   borrowedBooksList.innerHTML = "";
   let found = false;
-  
+
   Object.entries(allTransactions).forEach(([trxId, trx]) => {
     if (trx.memberId === memberId && trx.status === "borrowed") {
       found = true;
@@ -698,17 +739,24 @@ function loadMemberForReturn() {
             <small>Dipinjam: ${trx.borrowDate}</small>
             <br>
             <small>Jatuh tempo: ${trx.dueDate}</small>
-            ${overdue ? '<br><small style="color: red;">⚠️ TERLAMBAT</small>' : ''}
+            ${
+              overdue
+                ? '<br><small style="color: red;">⚠️ TERLAMBAT</small>'
+                : ""
+            }
           </span>
           <button class="btn btn-success" onclick="processReturn('${trxId}')">📥 Kembalikan</button>
         </div>
       `;
     }
   });
-  
-  document.getElementById("returnMemberInfo").classList.toggle("hidden", !found);
+
+  document
+    .getElementById("returnMemberInfo")
+    .classList.toggle("hidden", !found);
   if (!found) {
-    borrowedBooksList.innerHTML = "<em>Tidak ada buku yang sedang dipinjam.</em>";
+    borrowedBooksList.innerHTML =
+      "<em>Tidak ada buku yang sedang dipinjam.</em>";
   }
 }
 
@@ -719,15 +767,17 @@ function processReturn(trxId) {
     return;
   }
 
-  database.ref("Transactions/" + trxId).update({
-    status: "returned",
-    returnDate: new Date().toISOString().slice(0, 10)
-  })
+  database
+    .ref("Transactions/" + trxId)
+    .update({
+      status: "returned",
+      returnDate: new Date().toISOString().slice(0, 10),
+    })
     .then(() => {
       const book = allBooks[trx.bookId];
       if (book) {
-        return database.ref("Books/" + trx.bookId).update({ 
-          stock: Number(book.stock) + 1 
+        return database.ref("Books/" + trx.bookId).update({
+          stock: Number(book.stock) + 1,
         });
       }
     })
@@ -743,179 +793,143 @@ function processReturn(trxId) {
 
 // Charts
 function initializeCharts() {
-  try {
-    console.log("Initializing charts...");
-    
-    // Wait for DOM to be ready
-    setTimeout(() => {
-      const ctx1 = document.getElementById("categoryChart");
-      if (ctx1 && !categoryChart) {
-        categoryChart = new Chart(ctx1.getContext("2d"), {
-          type: "doughnut",
-          data: { 
-            labels: ["Sejarah", "Sains"], 
-            datasets: [{ 
-              data: [2, 5], 
-              backgroundColor: [
-                "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
-                "#d63031", "#e17055", "#0984e3", "#636e72"
-              ],
-              borderWidth: 0
-            }] 
+  setTimeout(() => {
+    const ctx1 = document.getElementById("categoryChart");
+    const ctx2 = document.getElementById("weeklyChart");
+
+    if (ctx1 && !categoryChart) {
+      categoryChart = new Chart(ctx1.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: [],
+          datasets: [
+            { data: [], backgroundColor: [...warnaKategori()], borderWidth: 0 },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { usePointStyle: true, padding: 20 },
+            },
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: 'bottom',
-                labels: {
-                  usePointStyle: true,
-                  padding: 20
-                }
-              }
-            }
-          }
-        });
-        console.log("Category chart initialized");
-      }
-      
-      const ctx2 = document.getElementById("weeklyChart");
-      if (ctx2 && !weeklyChart) {
-        weeklyChart = new Chart(ctx2.getContext("2d"), {
-          type: "bar",
-          data: {
-            labels: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
-            datasets: [{ 
-              label: "Peminjaman", 
-              data: [0, 1, 0, 0, 1, 0, 0], 
+        },
+      });
+    }
+
+    if (ctx2 && !weeklyChart) {
+      weeklyChart = new Chart(ctx2.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Peminjaman",
+              data: [],
               backgroundColor: "#667eea",
               borderColor: "#667eea",
-              borderWidth: 1
-            }],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  stepSize: 1
-                }
-              }
+              borderWidth: 1,
             },
-            plugins: {
-              legend: {
-                display: true,
-                position: 'top'
-              }
-            }
-          }
-        });
-        console.log("Weekly chart initialized");
-      }
-    }, 1000);
-  } catch (error) {
-    console.error("Error initializing charts:", error);
-  }
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+          plugins: { legend: { display: true, position: "top" } },
+        },
+      });
+    }
+  }, 1000);
+}
+
+function warnaKategori() {
+  return [
+    "#6c5ce7",
+    "#fdcb6e",
+    "#00b894",
+    "#00cec9",
+    "#d63031",
+    "#e17055",
+    "#0984e3",
+    "#636e72",
+  ];
 }
 
 function updateCategoryChart() {
-  if (!categoryChart) {
-    console.log("Category chart not initialized");
-    return;
-  }
-  
+  if (!categoryChart) return;
+
   try {
     const categoryCount = {};
-    
-    // Count books by category based on actual Firebase data
-    Object.values(allBooks).forEach((book) => {
-      if (book && book.category) {
-        const category = book.category;
-        categoryCount[category] = (categoryCount[category] || 0) + parseInt(book.stock || 0);
-      }
+
+    Object.values(allBooks || {}).forEach((book) => {
+      const cat = book.category || "Tanpa Kategori";
+      categoryCount[cat] =
+        (categoryCount[cat] || 0) + parseInt(book.stock || 0);
     });
-    
-    console.log("Category data:", categoryCount);
-    
-    // If no data, show sample data
+
+    // Jika tidak ada data
     if (Object.keys(categoryCount).length === 0) {
-      categoryCount["Sejarah"] = 2;
-      categoryCount["Sains"] = 5;
+      categoryCount["Belum Ada"] = 1;
     }
-    
-    const labels = Object.keys(categoryCount);
-    const data = Object.values(categoryCount);
-    
-    categoryChart.data.labels = labels;
-    categoryChart.data.datasets[0].data = data;
-    categoryChart.data.datasets[0].backgroundColor = [
-      "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
-      "#d63031", "#e17055", "#0984e3", "#636e72"
-    ];
-    
-    categoryChart.update('none'); // Disable animation for smoother updates
-  } catch (error) {
-    console.error("Error updating category chart:", error);
+
+    categoryChart.data.labels = Object.keys(categoryCount);
+    categoryChart.data.datasets[0].data = Object.values(categoryCount);
+    categoryChart.update("none");
+  } catch (err) {
+    console.error("Error updating category chart:", err);
   }
 }
 
 function updateWeeklyChart() {
-  if (!weeklyChart) {
-    console.log("Weekly chart not initialized");
-    return;
-  }
-  
+  if (!weeklyChart) return;
+
   try {
     const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
     const counts = [0, 0, 0, 0, 0, 0, 0];
-    
-    // Count transactions for each day of the week
-    Object.values(allTransactions).forEach((trx) => {
-      if (trx && trx.borrowDate && trx.status === "borrowed") {
-        const borrowDate = new Date(trx.borrowDate);
-        const dayIndex = borrowDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-        counts[dayIndex]++;
+
+    Object.values(allTransactions || {}).forEach((trx) => {
+      if (trx && trx.status === "borrowed" && trx.borrowDate) {
+        const day = new Date(trx.borrowDate).getDay();
+        counts[day]++;
       }
     });
-    
-    // If no data, add sample data based on your existing transactions
-    if (counts.every(count => count === 0)) {
-      counts[1] = 1; // Monday - 1 peminjaman
-      counts[4] = 1; // Thursday - 1 peminjaman  
+
+    // Gunakan data dummy jika semua nol
+    if (counts.every((c) => c === 0)) {
+      counts[1] = 1;
+      counts[4] = 1;
     }
-    
-    console.log("Weekly data:", { days, counts });
-    
+
     weeklyChart.data.labels = days;
     weeklyChart.data.datasets[0].data = counts;
-    weeklyChart.data.datasets[0].backgroundColor = "#667eea";
-    weeklyChart.data.datasets[0].borderColor = "#667eea";
-    weeklyChart.data.datasets[0].borderWidth = 1;
-    
-    weeklyChart.update('none'); // Disable animation for smoother updates
-  } catch (error) {
-    console.error("Error updating weekly chart:", error);
+    weeklyChart.update("none");
+  } catch (err) {
+    console.error("Error updating weekly chart:", err);
   }
 }
 
 function updateRecentActivities() {
   const container = document.getElementById("recentActivities");
   if (!container) return;
-  
+
   const sorted = Object.values(allTransactions).sort((a, b) =>
     (b.borrowDate || "").localeCompare(a.borrowDate || "")
   );
-  
+
   container.innerHTML = "";
   sorted.slice(0, 5).forEach((trx) => {
     container.innerHTML += `
       <div class="activity-item">
-        <span class="activity-icon">${trx.status === "borrowed" ? "📤" : "📥"}</span>
+        <span class="activity-icon">${
+          trx.status === "borrowed" ? "📤" : "📥"
+        }</span>
         <span>
-          <strong>${trx.memberName}</strong> ${trx.status === "borrowed" ? "meminjam" : "mengembalikan"} 
+          <strong>${trx.memberName}</strong> ${
+      trx.status === "borrowed" ? "meminjam" : "mengembalikan"
+    } 
           <em>${trx.bookTitle}</em>
           <br>
           <small>${trx.borrowDate || "-"}</small>
@@ -923,7 +937,7 @@ function updateRecentActivities() {
       </div>
     `;
   });
-  
+
   if (!container.innerHTML) {
     container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
   }
@@ -931,15 +945,25 @@ function updateRecentActivities() {
 
 // Navigation
 function showSection(section) {
-  ["dashboard", "books", "members", "borrow", "return", "reports", "settings"].forEach((id) => {
+  [
+    "dashboard",
+    "books",
+    "members",
+    "borrow",
+    "return",
+    "reports",
+    "settings",
+  ].forEach((id) => {
     const element = document.getElementById(id + "-section");
     if (element) element.classList.add("hidden");
   });
-  
+
   const targetSection = document.getElementById(section + "-section");
   if (targetSection) targetSection.classList.remove("hidden");
-  
-  document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
+
+  document
+    .querySelectorAll(".nav-btn")
+    .forEach((btn) => btn.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((btn) => {
     if (btn.onclick && btn.onclick.toString().includes(section)) {
       btn.classList.add("active");
@@ -954,50 +978,135 @@ window.onclick = function (event) {
     if (event.target === modal) closeModal(modalId);
   });
 };
+function generateDailyReport() {
+  const date = document.getElementById("dailyReportDate").value;
+  const reportContainer = document.getElementById("reportContent");
+  if (!date) return alert("Pilih tanggal terlebih dahulu!");
+
+  let html = `<h3>Laporan Peminjaman Tanggal ${date}</h3><ul>`;
+
+  let count = 0;
+  Object.values(allTransactions || {}).forEach((trx) => {
+    if (trx.borrowDate === date) {
+      html += `<li><strong>${trx.memberName}</strong> meminjam <em>${trx.bookTitle}</em></li>`;
+      count++;
+    }
+  });
+
+  if (count === 0) {
+    html += "<li><em>Tidak ada peminjaman pada tanggal ini.</em></li>";
+  }
+
+  html += "</ul>";
+  reportContainer.innerHTML = html;
+}
+
+function generateMonthlyReport() {
+  const month = document.getElementById("monthlyReportMonth").value;
+  const reportContainer = document.getElementById("reportContent");
+  if (!month) return alert("Pilih bulan terlebih dahulu!");
+
+  let html = `<h3>Laporan Peminjaman Bulan ${month}</h3><ul>`;
+
+  let count = 0;
+  Object.values(allTransactions || {}).forEach((trx) => {
+    if (trx.borrowDate && trx.borrowDate.startsWith(month)) {
+      html += `<li><strong>${trx.memberName}</strong> meminjam <em>${trx.bookTitle}</em> (${trx.borrowDate})</li>`;
+      count++;
+    }
+  });
+
+  if (count === 0) {
+    html += "<li><em>Tidak ada peminjaman pada bulan ini.</em></li>";
+  }
+
+  html += "</ul>";
+  reportContainer.innerHTML = html;
+}
+
+function printReport(type) {
+  const date =
+    type === "daily"
+      ? document.getElementById("dailyReportDate").value
+      : document.getElementById("monthlyReportMonth").value;
+  const content = document.getElementById("reportContent").innerHTML;
+
+  if (!date || !content) {
+    alert("Silakan lihat laporan terlebih dahulu sebelum mencetak.");
+    return;
+  }
+
+  const win = window.open("", "_blank");
+  win.document.write(`
+    <html>
+    <head>
+      <title>Laporan ${
+        type === "daily" ? "Harian" : "Bulanan"
+      } - ${date}</title>
+      <style>
+        body { font-family: sans-serif; padding: 20px; }
+        h3 { margin-bottom: 10px; }
+        ul { padding-left: 20px; }
+      </style>
+    </head>
+    <body>
+      ${content}
+    </body>
+    </html>
+  `);
+  win.document.close();
+  win.print();
+}
 
 // RFID Handler integration
 function setupRFIDListener() {
   console.log("Setting up RFID listener...");
   const rfidRef = database.ref("current_rfid");
 
-  rfidRef.on("value", async (snapshot) => {
-    const data = snapshot.val();
-    if (data && data.uid) {
-      console.log("RFID data received:", data.uid);
-      
-      // Jika berada di halaman Peminjaman
-      const borrowSection = document.getElementById("borrow-section");
-      if (borrowSection && !borrowSection.classList.contains("hidden")) {
-        document.getElementById("borrowUID").value = data.uid;
-        verifyBorrowUID();
-      }
+  rfidRef.on(
+    "value",
+    async (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.uid) {
+        console.log("RFID data received:", data.uid);
 
-      // Jika berada di halaman Pengembalian
-      const returnSection = document.getElementById("return-section");
-      if (returnSection && !returnSection.classList.contains("hidden")) {
-        document.getElementById("returnUID").value = data.uid;
-        loadMemberForReturn();
-      }
+        // Jika berada di halaman Peminjaman
+        const borrowSection = document.getElementById("borrow-section");
+        if (borrowSection && !borrowSection.classList.contains("hidden")) {
+          document.getElementById("borrowUID").value = data.uid;
+          verifyBorrowUID();
+        }
 
-      // Feedback visual
-      const statusElement = document.getElementById("borrowRfidStatus");
-      if (statusElement) {
-        statusElement.textContent = "Status: Memproses UID...";
-        statusElement.style.backgroundColor = "#d4edda";
-        statusElement.style.color = "#155724";
+        // Jika berada di halaman Pengembalian
+        const returnSection = document.getElementById("return-section");
+        if (returnSection && !returnSection.classList.contains("hidden")) {
+          document.getElementById("returnUID").value = data.uid;
+          loadMemberForReturn();
+        }
+
+        // Feedback visual
+        const statusElement = document.getElementById("borrowRfidStatus");
+        if (statusElement) {
+          statusElement.textContent = "Status: Memproses UID...";
+          statusElement.style.backgroundColor = "#d4edda";
+          statusElement.style.color = "#155724";
+          setTimeout(() => {
+            statusElement.style.backgroundColor = "";
+            statusElement.style.color = "";
+          }, 2000);
+        }
+
+        // Reset UID agar bisa tap kartu berikutnya
         setTimeout(() => {
-          statusElement.style.backgroundColor = "";
-          statusElement.style.color = "";
+          database
+            .ref("current_rfid")
+            .set({})
+            .catch((error) => console.error("Error clearing RFID:", error));
         }, 2000);
       }
-
-      // Reset UID agar bisa tap kartu berikutnya
-      setTimeout(() => {
-        database.ref("current_rfid").set({})
-          .catch((error) => console.error("Error clearing RFID:", error));
-      }, 2000);
+    },
+    (error) => {
+      console.error("Error in RFID listener:", error);
     }
-  }, (error) => {
-    console.error("Error in RFID listener:", error);
-  });
+  );
 }

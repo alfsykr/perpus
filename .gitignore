@@ -1,0 +1,23 @@
+# Node.js dependencies
+node_modules/
+
+# Python virtual environment
+venv/
+
+# Optional - rekomendasi tambahan
+.env
+*.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# VSCode
+.vscode/
+
+# Firebase
+.firebase/
+.firebase/*.cache
+
+# Replit
+.replit
