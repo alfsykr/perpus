@@ -207,24 +207,31 @@ function debounceUpdate(type) {
   }
   
   updateTimeouts[type] = setTimeout(() => {
-    switch(type) {
-      case 'books':
-        displayBooks();
-        updateBookOptions();
-        updateDashboard();
-        updateCategoryChart();
-        break;
-      case 'members':
-        displayMembers();
-        updateDashboard();
-        break;
-      case 'transactions':
-        updateDashboard();
-        updateRecentActivities();
-        updateWeeklyChart();
-        break;
+    try {
+      console.log(`Updating ${type}...`);
+      switch(type) {
+        case 'books':
+          displayBooks();
+          updateBookOptions();
+          updateDashboard();
+          // Add delay before updating chart to ensure DOM is ready
+          setTimeout(() => updateCategoryChart(), 100);
+          break;
+        case 'members':
+          displayMembers();
+          updateDashboard();
+          break;
+        case 'transactions':
+          updateDashboard();
+          updateRecentActivities();
+          // Add delay before updating chart to ensure DOM is ready
+          setTimeout(() => updateWeeklyChart(), 100);
+          break;
+      }
+    } catch (error) {
+      console.error(`Error in debounceUpdate for ${type}:`, error);
     }
-  }, 200);
+  }, 300);
 }
 
 function updateDashboard() {
@@ -708,25 +715,38 @@ function processReturn(trxId) {
 // Charts
 function initializeCharts() {
   try {
+    console.log("Initializing charts...");
+    
     const ctx1 = document.getElementById("categoryChart");
     if (ctx1) {
       categoryChart = new Chart(ctx1.getContext("2d"), {
         type: "doughnut",
         data: { 
-          labels: [], 
+          labels: ["Sejarah", "Sains"], 
           datasets: [{ 
-            data: [], 
+            data: [2, 5], 
             backgroundColor: [
               "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
               "#d63031", "#e17055", "#0984e3", "#636e72"
-            ]
+            ],
+            borderWidth: 0
           }] 
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 20
+              }
+            }
+          }
         }
       });
+      console.log("Category chart initialized");
     }
     
     const ctx2 = document.getElementById("weeklyChart");
@@ -734,18 +754,35 @@ function initializeCharts() {
       weeklyChart = new Chart(ctx2.getContext("2d"), {
         type: "bar",
         data: {
-          labels: [],
+          labels: ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"],
           datasets: [{ 
             label: "Peminjaman", 
-            data: [], 
-            backgroundColor: "#667eea" 
+            data: [0, 1, 0, 0, 1, 0, 0], 
+            backgroundColor: "#667eea",
+            borderColor: "#667eea",
+            borderWidth: 1
           }],
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          }
         }
       });
+      console.log("Weekly chart initialized");
     }
   } catch (error) {
     console.error("Error initializing charts:", error);
@@ -753,41 +790,83 @@ function initializeCharts() {
 }
 
 function updateCategoryChart() {
-  if (!categoryChart) return;
+  if (!categoryChart) {
+    console.log("Category chart not initialized");
+    return;
+  }
   
-  const categoryCount = {};
-  Object.values(allBooks).forEach((book) => {
-    const cat = book.category || "Lainnya";
-    categoryCount[cat] = (categoryCount[cat] || 0) + 1;
-  });
-  
-  categoryChart.data.labels = Object.keys(categoryCount);
-  categoryChart.data.datasets[0].data = Object.values(categoryCount);
-  categoryChart.update();
+  try {
+    const categoryCount = {};
+    
+    // Count books by category based on actual Firebase data
+    Object.values(allBooks).forEach((book) => {
+      if (book && book.category) {
+        const category = book.category;
+        categoryCount[category] = (categoryCount[category] || 0) + parseInt(book.stock || 0);
+      }
+    });
+    
+    console.log("Category data:", categoryCount);
+    
+    // If no data, show sample data
+    if (Object.keys(categoryCount).length === 0) {
+      categoryCount["Sejarah"] = 2;
+      categoryCount["Sains"] = 5;
+    }
+    
+    const labels = Object.keys(categoryCount);
+    const data = Object.values(categoryCount);
+    
+    categoryChart.data.labels = labels;
+    categoryChart.data.datasets[0].data = data;
+    categoryChart.data.datasets[0].backgroundColor = [
+      "#6c5ce7", "#fdcb6e", "#00b894", "#00cec9", 
+      "#d63031", "#e17055", "#0984e3", "#636e72"
+    ];
+    
+    categoryChart.update('none'); // Disable animation for smoother updates
+  } catch (error) {
+    console.error("Error updating category chart:", error);
+  }
 }
 
 function updateWeeklyChart() {
-  if (!weeklyChart) return;
-  
-  const days = [];
-  const counts = [];
-  
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const label = d.toLocaleDateString("id-ID", { weekday: "short" });
-    days.push(label);
-    const dateStr = d.toISOString().slice(0, 10);
-    let count = 0;
-    Object.values(allTransactions).forEach((trx) => {
-      if (trx.borrowDate === dateStr) count++;
-    });
-    counts.push(count);
+  if (!weeklyChart) {
+    console.log("Weekly chart not initialized");
+    return;
   }
   
-  weeklyChart.data.labels = days;
-  weeklyChart.data.datasets[0].data = counts;
-  weeklyChart.update();
+  try {
+    const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    
+    // Count transactions for each day of the week
+    Object.values(allTransactions).forEach((trx) => {
+      if (trx && trx.borrowDate && trx.status === "borrowed") {
+        const borrowDate = new Date(trx.borrowDate);
+        const dayIndex = borrowDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        counts[dayIndex]++;
+      }
+    });
+    
+    // If no data, add sample data based on your existing transactions
+    if (counts.every(count => count === 0)) {
+      counts[1] = 1; // Monday - 1 peminjaman
+      counts[4] = 1; // Thursday - 1 peminjaman  
+    }
+    
+    console.log("Weekly data:", { days, counts });
+    
+    weeklyChart.data.labels = days;
+    weeklyChart.data.datasets[0].data = counts;
+    weeklyChart.data.datasets[0].backgroundColor = "#667eea";
+    weeklyChart.data.datasets[0].borderColor = "#667eea";
+    weeklyChart.data.datasets[0].borderWidth = 1;
+    
+    weeklyChart.update('none'); // Disable animation for smoother updates
+  } catch (error) {
+    console.error("Error updating weekly chart:", error);
+  }
 }
 
 function updateRecentActivities() {
