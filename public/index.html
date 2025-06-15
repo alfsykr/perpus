@@ -121,85 +121,166 @@
           <h2 class="section-title">📤 Peminjaman Buku</h2>
 
           <div class="form-group">
-            <label for="borrowUID">📡 Tap Kartu Anggota (UID):</label>
-            <input
-              type="text"
-              id="borrowUID"
-              placeholder="Masukkan atau tap UID KTP"
-              oninput="verifyBorrowUID()"
-              autocomplete="off"
-            />
+            <label>📡 Pilih Metode Input UID:</label>
+            <div style="display: flex; gap: 15px; margin-bottom: 15px">
+              <label style="display: flex; align-items: center; gap: 5px">
+                <input
+                  type="radio"
+                  name="borrowInputMethod"
+                  value="rfid"
+                  checked
+                  onchange="toggleBorrowInputMethod()"
+                />
+                📱 Tap Kartu RFID
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px">
+                <input
+                  type="radio"
+                  name="borrowInputMethod"
+                  value="manual"
+                  onchange="toggleBorrowInputMethod()"
+                />
+                ✏️ Input Manual
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="borrowUID">📡 UID Kartu Anggota:</label>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <input
+                type="text"
+                id="borrowUID"
+                placeholder="Tap kartu atau masukkan manual"
+                oninput="verifyBorrowUID()"
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                class="btn"
+                onclick="enableRFIDForBorrow()"
+                id="borrowRfidBtn"
+              >
+                📱 Tap Kartu
+              </button>
+            </div>
             <div id="borrowRfidStatus" class="rfid-status">
+              Status: Menunggu tap kartu anggota...
+            </div>
+
+            <div id="borrowSectionContent" class="hidden">
+              <!-- Konten peminjaman buku -->
+            </div>
+          </div>
+        </div>
+
+        <div id="return-section" class="hidden">
+          <h2 class="section-title">📥 Pengembalian Buku</h2>
+
+          <div class="form-group">
+            <label>📡 Pilih Metode Input UID:</label>
+            <div style="display: flex; gap: 15px; margin-bottom: 15px">
+              <label style="display: flex; align-items: center; gap: 5px">
+                <input
+                  type="radio"
+                  name="returnInputMethod"
+                  value="rfid"
+                  checked
+                  onchange="toggleReturnInputMethod()"
+                />
+                📱 Tap Kartu RFID
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px">
+                <input
+                  type="radio"
+                  name="returnInputMethod"
+                  value="manual"
+                  onchange="toggleReturnInputMethod()"
+                />
+                ✏️ Input Manual
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="returnUID">📡 UID Kartu Anggota:</label>
+            <div style="display: flex; gap: 10px; align-items: center">
+              <input
+                type="text"
+                id="returnUID"
+                placeholder="Tap kartu atau masukkan manual"
+                onchange="loadMemberForReturn()"
+              />
+              <button
+                type="button"
+                class="btn"
+                onclick="enableRFIDForReturn()"
+                id="returnRfidBtn"
+              >
+                📱 Tap Kartu
+              </button>
+            </div>
+            <div id="returnRfidStatus" class="rfid-status">
               Status: Menunggu tap kartu anggota...
             </div>
           </div>
 
-          <div id="borrowSectionContent" class="hidden">
-            <div id="borrowMemberInfo">
-              <h3>👤 Informasi Anggota:</h3>
-              <div id="borrowMemberDetails"></div>
-            </div>
-
-            <div class="form-group">
-              <label for="borrowBookSelect">📖 Pilih Buku (Maks. 3):</label>
-              <select id="borrowBookSelect" onchange="selectBookForBorrow()">
-                <option value="">-- Pilih Buku --</option>
-              </select>
-            </div>
-
-            <h4>📚 Buku Dipilih:</h4>
-            <ul id="selectedBooksList"></ul>
-
-            <button class="btn" onclick="processBorrow()">
-              📤 Proses Peminjaman
-            </button>
-          </div>
-        </div>
-
-        <!-- Pengembalian Section -->
-        <div id="return-section" class="hidden">
-          <h2 class="section-title">📥 Pengembalian Buku</h2>
-          <div class="form-group">
-            <label>Tap Kartu / Masukkan UID:</label>
-            <input
-              type="text"
-              id="returnUID"
-              placeholder="UID Anggota"
-              onchange="loadMemberForReturn()"
-            />
-          </div>
           <div id="returnMemberInfo" class="hidden">
             <h3>Buku yang Dipinjam:</h3>
             <div id="borrowedBooksList"></div>
           </div>
         </div>
 
-        <!-- Laporan Section -->
         <div id="reports-section" class="hidden">
           <h2 class="section-title">📋 Laporan</h2>
           <div class="grid">
             <div class="chart-container">
               <h3>📅 Laporan Harian</h3>
-              <input type="date" id="dailyReportDate" />
+              <div class="form-group">
+                <label>Pilih Tanggal:</label>
+                <input type="date" id="dailyReportDate" />
+              </div>
               <button class="btn" onclick="generateDailyReport()">
                 👁️ Lihat Laporan
               </button>
-              <button class="btn btn-success" onclick="printReport('daily')">
-                🖨️ Print
-              </button>
             </div>
             <div class="chart-container">
-              <h3>📆 Laporan Bulanan</h3>
-              <input type="month" id="monthlyReportMonth" />
-              <button class="btn" onclick="generateMonthlyReport()">
-                👁️ Lihat Laporan
-              </button>
-              <button class="btn btn-success" onclick="printReport('monthly')">
-                🖨️ Print
+              <h3>📊 Laporan Sirkulasi</h3>
+              <div class="form-group">
+                <label>Filter Periode:</label>
+                <select id="circulationPeriod">
+                  <option value="all">Semua Data</option>
+                  <option value="thisWeek">Minggu Ini</option>
+                  <option value="thisMonth">Bulan Ini</option>
+                  <option value="lastMonth">Bulan Lalu</option>
+                </select>
+              </div>
+              <button class="btn" onclick="generateCirculationReport()">
+                👁️ Lihat Laporan Sirkulasi
               </button>
             </div>
           </div>
-          <div id="reportContent"></div>
+        </div>
+        <!-- Report Modal -->
+        <div id="reportModal" class="modal">
+          <div class="modal-content report-modal">
+            <span class="close" onclick="closeModal('reportModal')"
+              >&times;</span
+            >
+            <div class="report-header">
+              <h2 id="reportModalTitle">📋 Laporan</h2>
+              <button
+                class="btn btn-success"
+                onclick="printCurrentReport()"
+                id="printReportBtn"
+              >
+                🖨️ Print Laporan
+              </button>
+            </div>
+            <div id="reportModalContent">
+              <!-- Report content will be inserted here -->
+            </div>
+          </div>
         </div>
 
         <!-- Pengaturan Section -->
@@ -298,7 +379,25 @@
         <form id="memberForm">
           <div class="form-group">
             <label>UID Kartu:</label>
-            <input type="text" id="memberUID" required />
+            <div style="display: flex; gap: 10px; align-items: center">
+              <input
+                type="text"
+                id="memberUID"
+                required
+                placeholder="Tap kartu atau masukkan manual"
+              />
+              <button
+                type="button"
+                class="btn"
+                onclick="enableRFIDForMember()"
+                id="memberRfidBtn"
+              >
+                📱 Tap Kartu
+              </button>
+            </div>
+            <div id="memberRfidStatus" class="rfid-status">
+              Status: Siap untuk tap kartu
+            </div>
           </div>
           <div class="form-group">
             <label>Nama Lengkap:</label>
@@ -336,7 +435,7 @@
         </form>
       </div>
     </div>
-  <script src="js/app.js"></script>
+    <script src="js/app.js"></script>
     <script src="js/rfid-handler.js"></script>
   </body>
 </html>

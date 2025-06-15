@@ -201,6 +201,47 @@ body {
   margin-bottom: 25px;
 }
 
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
+  border-radius: 15px;
+  margin-bottom: 20px;
+  border: 2px solid #dee2e6;
+}
+
+.pagination-btn {
+  padding: 5px 10px;
+  font-size: 14px;
+  margin: 0 5px;
+  min-width: 100px;
+}
+
+.pagination-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.pagination-btn:disabled:hover {
+  transform: none;
+}
+
+.pagination-info {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+  text-align: center;
+  flex: 1;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
 .form-group label {
   display: block;
   margin-bottom: 8px;
@@ -494,8 +535,48 @@ body {
 }
 
 .overdue {
-  background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%);
-  border-left-color: #dc3545;
+  border-left: 4px solid #d63031;
+  background-color: #ffe6e6;
+}
+
+.rfid-status {
+  margin-top: 5px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 0.9em;
+  background-color: #e3f2fd;
+  color: #0d47a1;
+  border: 1px solid #bbdefb;
+}
+
+.rfid-status.waiting {
+  background-color: #fff3e0;
+  color: #ef6c00;
+  border-color: #ffcc02;
+}
+
+.rfid-status.success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+  border-color: #a5d6a7;
+}
+
+.rfid-status.error {
+  background-color: #ffebee;
+  color: #c62828;
+  border-color: #ef9a9a;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
 }
 
 .hidden {
@@ -539,4 +620,232 @@ body {
   padding: 50px;
   color: #666;
   font-size: 1.2rem;
+}
+
+/* Report Modal Styles */
+.report-modal {
+  max-width: 90%;
+  width: 1000px;
+  max-height: 90vh;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e1e5e9;
+}
+
+.report-header h2 {
+  margin: 0;
+  color: #333;
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Report Table Styles */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: white;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.report-table thead {
+  background: linear-gradient(45deg, #667eea, #764ba2);
+  color: white;
+}
+
+.report-table th,
+.report-table td {
+  padding: 15px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.report-table th {
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.report-table tbody tr:hover {
+  background-color: #e3f2fd;
+  transform: scale(1.01);
+  transition: all 0.2s ease;
+}
+
+.report-table td {
+  font-size: 14px;
+  color: #333;
+}
+
+.report-table .status-cell {
+  text-align: center;
+}
+
+.report-table .status-badge {
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.report-table .amount-cell {
+  text-align: right;
+  font-weight: 600;
+  color: #d63031;
+}
+
+.report-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.report-summary .summary-item {
+  text-align: center;
+}
+
+.report-summary .summary-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #667eea;
+  display: block;
+}
+
+.report-summary .summary-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pagination-table {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.pagination-table .pagination-info {
+  font-weight: 600;
+  color: #495057;
+}
+
+.pagination-table .pagination-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.pagination-table .pagination-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  margin: 0;
+  min-width: auto;
+}
+
+/* Print specific styles */
+@media print {
+  .report-modal {
+    box-shadow: none;
+    border: none;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .report-header {
+    border-bottom: 2px solid #333;
+  }
+
+  .btn,
+  .close {
+    display: none !important;
+  }
+
+  .report-table {
+    box-shadow: none;
+  }
+
+  .report-table thead {
+    background: #333 !important;
+    color: white !important;
+  }
+}
+
+/* Tambahkan ini ke CSS Anda */
+.pagination-table {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.pagination-table .pagination-info {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+}
+
+.pagination-table .pagination-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.pagination-table .pagination-btn {
+  padding: 6px 12px;
+  font-size: 14px;
+  margin: 0;
+  min-width: auto;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  color: #495057;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-table .pagination-btn:hover:not(:disabled) {
+  background-color: #e9ecef;
+}
+
+.pagination-table .pagination-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pagination-table .pagination-btn.active {
+  background-color: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.pagination-table .pagination-ellipsis {
+  padding: 6px 12px;
+  color: #6c757d;
 }

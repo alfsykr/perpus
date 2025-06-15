@@ -538,6 +538,17 @@ function closeModal(id) {
   if (id === "memberModal") {
     const memberForm = document.getElementById("memberForm");
     if (memberForm) memberForm.reset();
+    memberRfidListening = false;
+    const statusElement = document.getElementById("memberRfidStatus");
+    const btnElement = document.getElementById("memberRfidBtn");
+    if (statusElement) {
+      statusElement.textContent = "Status: Siap untuk tap kartu";
+      statusElement.className = "rfid-status";
+    }
+    if (btnElement) {
+      btnElement.textContent = "📱 Tap Kartu";
+      btnElement.classList.remove("btn-danger");
+    }
   }
   document.getElementById("bookModalTitle").textContent = "Tambah Buku";
   document.getElementById("memberModalTitle").textContent = "Tambah Anggota";
@@ -911,6 +922,9 @@ function updateWeeklyChart() {
   }
 }
 
+let currentActivityPage = 0;
+const activitiesPerPage = 5;
+
 function updateRecentActivities() {
   const container = document.getElementById("recentActivities");
   if (!container) return;
@@ -919,32 +933,87 @@ function updateRecentActivities() {
     (b.borrowDate || "").localeCompare(a.borrowDate || "")
   );
 
+  const totalActivities = sorted.length;
+  const totalPages = Math.ceil(totalActivities / activitiesPerPage);
+
+  if (currentActivityPage >= totalPages) {
+    currentActivityPage = Math.max(0, totalPages - 1);
+  }
+
+  const startIndex = currentActivityPage * activitiesPerPage;
+  const endIndex = startIndex + activitiesPerPage;
+  const currentActivities = sorted.slice(startIndex, endIndex);
+
   container.innerHTML = "";
-  sorted.slice(0, 5).forEach((trx) => {
+
+  if (currentActivities.length === 0) {
+    container.innerHTML += "<em>Tidak ada aktivitas terbaru.</em>";
+  } else {
+    currentActivities.forEach((trx) => {
+      container.innerHTML += `
+        <div class="activity-item">
+          <span class="activity-icon">${
+            trx.status === "borrowed" ? "📤" : "📥"
+          }</span>
+          <span>
+            <strong>${trx.memberName}</strong> ${
+        trx.status === "borrowed" ? "meminjam" : "mengembalikan"
+      } 
+            <em>${trx.bookTitle}</em>
+            <br>
+            <small>${trx.borrowDate || trx.returnDate || "-"}</small>
+          </span>
+        </div>
+      `;
+    });
+  }
+
+  // Tambahkan pagination di bawah
+  if (totalPages > 1) {
     container.innerHTML += `
-      <div class="activity-item">
-        <span class="activity-icon">${
-          trx.status === "borrowed" ? "📤" : "📥"
-        }</span>
-        <span>
-          <strong>${trx.memberName}</strong> ${
-      trx.status === "borrowed" ? "meminjam" : "mengembalikan"
-    } 
-          <em>${trx.bookTitle}</em>
-          <br>
-          <small>${trx.borrowDate || "-"}</small>
+      <div class="pagination-controls" style="margin-top: 1rem; text-align:center;">
+        <button class="btn pagination-btn" onclick="previousActivityPage()" ${
+          currentActivityPage === 0 ? "disabled" : ""
+        }>
+          ⬅️ Sebelumnya
+        </button>
+        <span class="pagination-info">
+          Halaman ${currentActivityPage + 1} dari ${totalPages}
         </span>
+        <button class="btn pagination-btn" onclick="nextActivityPage()" ${
+          currentActivityPage >= totalPages - 1 ? "disabled" : ""
+        }>
+          Selanjutnya ➡️
+        </button>
       </div>
     `;
-  });
+  }
+}
 
-  if (!container.innerHTML) {
-    container.innerHTML = "<em>Tidak ada aktivitas terbaru.</em>";
+function nextActivityPage() {
+  const totalActivities = Object.values(allTransactions).length;
+  const totalPages = Math.ceil(totalActivities / activitiesPerPage);
+
+  if (currentActivityPage < totalPages - 1) {
+    currentActivityPage++;
+    updateRecentActivities();
+  }
+}
+
+function previousActivityPage() {
+  if (currentActivityPage > 0) {
+    currentActivityPage--;
+    updateRecentActivities();
   }
 }
 
 // Navigation
 function showSection(section) {
+  // Reset RFID listening states when switching sections
+  memberRfidListening = false;
+  borrowRfidListening = false;
+  returnRfidListening = false;
+
   [
     "dashboard",
     "books",
@@ -961,6 +1030,29 @@ function showSection(section) {
   const targetSection = document.getElementById(section + "-section");
   if (targetSection) targetSection.classList.remove("hidden");
 
+  // Reset RFID button states
+  const borrowRfidBtn = document.getElementById("borrowRfidBtn");
+  const returnRfidBtn = document.getElementById("returnRfidBtn");
+  const borrowRfidStatus = document.getElementById("borrowRfidStatus");
+  const returnRfidStatus = document.getElementById("returnRfidStatus");
+
+  if (borrowRfidBtn) {
+    borrowRfidBtn.textContent = "📱 Tap Kartu";
+    borrowRfidBtn.classList.remove("btn-danger");
+  }
+  if (returnRfidBtn) {
+    returnRfidBtn.textContent = "📱 Tap Kartu";
+    returnRfidBtn.classList.remove("btn-danger");
+  }
+  if (borrowRfidStatus) {
+    borrowRfidStatus.textContent = "Status: Menunggu tap kartu anggota...";
+    borrowRfidStatus.className = "rfid-status";
+  }
+  if (returnRfidStatus) {
+    returnRfidStatus.textContent = "Status: Menunggu tap kartu anggota...";
+    returnRfidStatus.className = "rfid-status";
+  }
+
   document
     .querySelectorAll(".nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
@@ -973,92 +1065,588 @@ function showSection(section) {
 
 // Modal close by click outside
 window.onclick = function (event) {
-  ["bookModal", "memberModal"].forEach((modalId) => {
+  ["bookModal", "memberModal", "reportModal"].forEach((modalId) => {
     const modal = document.getElementById(modalId);
     if (event.target === modal) closeModal(modalId);
   });
 };
+let currentReportData = null;
+let currentReportType = null;
+
 function generateDailyReport() {
   const date = document.getElementById("dailyReportDate").value;
-  const reportContainer = document.getElementById("reportContent");
   if (!date) return alert("Pilih tanggal terlebih dahulu!");
 
-  let html = `<h3>Laporan Peminjaman Tanggal ${date}</h3><ul>`;
-
-  let count = 0;
+  const transactions = [];
   Object.values(allTransactions || {}).forEach((trx) => {
     if (trx.borrowDate === date) {
-      html += `<li><strong>${trx.memberName}</strong> meminjam <em>${trx.bookTitle}</em></li>`;
-      count++;
+      transactions.push(trx);
     }
   });
 
-  if (count === 0) {
-    html += "<li><em>Tidak ada peminjaman pada tanggal ini.</em></li>";
-  }
+  currentReportData = transactions;
+  currentReportType = "daily";
 
-  html += "</ul>";
-  reportContainer.innerHTML = html;
+  displayReportModal(
+    `📅 Laporan Harian - ${formatDate(date)}`,
+    transactions,
+    "daily"
+  );
 }
 
-function generateMonthlyReport() {
-  const month = document.getElementById("monthlyReportMonth").value;
-  const reportContainer = document.getElementById("reportContent");
-  if (!month) return alert("Pilih bulan terlebih dahulu!");
+function generateCirculationReport() {
+  const period = document.getElementById("circulationPeriod").value;
+  let transactions = [];
+  let title = "";
 
-  let html = `<h3>Laporan Peminjaman Bulan ${month}</h3><ul>`;
+  const today = new Date();
+  const currentDate = today.toISOString().slice(0, 10);
 
-  let count = 0;
   Object.values(allTransactions || {}).forEach((trx) => {
-    if (trx.borrowDate && trx.borrowDate.startsWith(month)) {
-      html += `<li><strong>${trx.memberName}</strong> meminjam <em>${trx.bookTitle}</em> (${trx.borrowDate})</li>`;
-      count++;
+    let include = false;
+    const trxDate = new Date(trx.borrowDate);
+
+    switch (period) {
+      case "all":
+        include = true;
+        title = "📊 Laporan Sirkulasi - Semua Data";
+        break;
+      case "thisWeek":
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        include = trxDate >= weekStart;
+        title = "📊 Laporan Sirkulasi - Minggu Ini";
+        break;
+      case "thisMonth":
+        include =
+          trx.borrowDate && trx.borrowDate.startsWith(currentDate.slice(0, 7));
+        title = "📊 Laporan Sirkulasi - Bulan Ini";
+        break;
+      case "lastMonth":
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(today.getMonth() - 1);
+        const lastMonthStr = lastMonth.toISOString().slice(0, 7);
+        include = trx.borrowDate && trx.borrowDate.startsWith(lastMonthStr);
+        title = "📊 Laporan Sirkulasi - Bulan Lalu";
+        break;
+    }
+
+    if (include) {
+      transactions.push(trx);
     }
   });
 
-  if (count === 0) {
-    html += "<li><em>Tidak ada peminjaman pada bulan ini.</em></li>";
-  }
+  currentReportData = transactions;
+  currentReportType = "circulation";
 
-  html += "</ul>";
-  reportContainer.innerHTML = html;
+  displayReportModal(title, transactions, "circulation");
 }
 
-function printReport(type) {
-  const date =
-    type === "daily"
-      ? document.getElementById("dailyReportDate").value
-      : document.getElementById("monthlyReportMonth").value;
-  const content = document.getElementById("reportContent").innerHTML;
+let currentPage = 1;
+const itemsPerPage = 10;
 
-  if (!date || !content) {
-    alert("Silakan lihat laporan terlebih dahulu sebelum mencetak.");
+function displayReportModal(title, transactions, type) {
+  const modal = document.getElementById("reportModal");
+  const modalTitle = document.getElementById("reportModalTitle");
+  const modalContent = document.getElementById("reportModalContent");
+
+  modalTitle.textContent = title;
+
+  if (transactions.length === 0) {
+    modalContent.innerHTML = `<div style="text-align: center; padding: 50px; color: #666;">
+        <h3>📋 Tidak ada data untuk periode yang dipilih</h3>
+        <p>Silakan pilih periode lain atau periksa data transaksi.</p>
+      </div>`;
+  } else {
+    currentPage = 1; // Reset ke halaman 1 setiap kali membuka laporan baru
+    const paginatedData = paginateData(transactions);
+    let tableHTML = "";
+
+    if (type === "daily") {
+      tableHTML = generateDailyReportTable(paginatedData);
+    } else {
+      tableHTML = generateCirculationReportTable(paginatedData);
+    }
+
+    // Tambahkan pagination controls
+    tableHTML += generatePaginationControls(transactions.length);
+
+    modalContent.innerHTML = tableHTML;
+  }
+
+  showModal("reportModal");
+}
+
+function paginateData(data) {
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  return data.slice(startIndex, endIndex);
+}
+
+function generatePaginationControls(totalItems) {
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  return `
+    <div class="pagination-table">
+      <div class="pagination-info">
+        Menampilkan ${startItem}-${endItem} dari ${totalItems} entri
+      </div>
+      <div class="pagination-controls">
+        <button class="btn pagination-btn" onclick="changePage(${
+          currentPage - 1
+        })" ${currentPage === 1 ? "disabled" : ""}>
+          Sebelumnya
+        </button>
+        ${generatePageNumbers(totalPages)}
+        <button class="btn pagination-btn" onclick="changePage(${
+          currentPage + 1
+        })" ${currentPage === totalPages ? "disabled" : ""}>
+          Selanjutnya
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function generatePageNumbers(totalPages) {
+  let pageNumbers = "";
+  const maxVisiblePages = 5;
+  let startPage, endPage;
+
+  if (totalPages <= maxVisiblePages) {
+    startPage = 1;
+    endPage = totalPages;
+  } else {
+    const maxPagesBeforeCurrent = Math.floor(maxVisiblePages / 2);
+    const maxPagesAfterCurrent = Math.ceil(maxVisiblePages / 2) - 1;
+
+    if (currentPage <= maxPagesBeforeCurrent) {
+      startPage = 1;
+      endPage = maxVisiblePages;
+    } else if (currentPage + maxPagesAfterCurrent >= totalPages) {
+      startPage = totalPages - maxVisiblePages + 1;
+      endPage = totalPages;
+    } else {
+      startPage = currentPage - maxPagesBeforeCurrent;
+      endPage = currentPage + maxPagesAfterCurrent;
+    }
+  }
+
+  if (startPage > 1) {
+    pageNumbers += `<button class="btn pagination-btn" onclick="changePage(1)">1</button>`;
+    if (startPage > 2) {
+      pageNumbers += `<span class="pagination-ellipsis">...</span>`;
+    }
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pageNumbers += `
+      <button class="btn pagination-btn ${
+        i === currentPage ? "active" : ""
+      }" onclick="changePage(${i})">
+        ${i}
+      </button>
+    `;
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      pageNumbers += `<span class="pagination-ellipsis">...</span>`;
+    }
+    pageNumbers += `<button class="btn pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+  }
+
+  return pageNumbers;
+}
+
+function changePage(newPage) {
+  const totalPages = Math.ceil(currentReportData.length / itemsPerPage);
+
+  if (newPage < 1 || newPage > totalPages) return;
+
+  currentPage = newPage;
+  const paginatedData = paginateData(currentReportData);
+
+  const modalContent = document.getElementById("reportModalContent");
+  let tableHTML = "";
+
+  if (currentReportType === "daily") {
+    tableHTML = generateDailyReportTable(paginatedData);
+  } else {
+    tableHTML = generateCirculationReportTable(paginatedData);
+  }
+
+  tableHTML += generatePaginationControls(currentReportData.length);
+  modalContent.innerHTML = tableHTML;
+}
+
+function generateDailyReportTable(transactions) {
+  let html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Nama Peminjam</th>
+          <th>Judul Buku</th>
+          <th>Tanggal Pinjam</th>
+          <th>Jatuh Tempo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  transactions.forEach((trx, index) => {
+    const status = trx.status === "borrowed" ? "Dipinjam" : "Dikembalikan";
+    const statusClass =
+      trx.status === "borrowed" ? "status-borrowed" : "status-available";
+
+    html += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${trx.memberName || "-"}</td>
+        <td>${trx.bookTitle || "-"}</td>
+        <td>${formatDate(trx.borrowDate)}</td>
+        <td>${formatDate(trx.dueDate)}</td>
+        <td class="status-cell">
+          <span class="status-badge ${statusClass}">${status}</span>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+    <div class="report-summary">
+      <div class="summary-item">
+        <span class="summary-number">${transactions.length}</span>
+        <span class="summary-label">Total Transaksi</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-number">${
+          transactions.filter((t) => t.status === "borrowed").length
+        }</span>
+        <span class="summary-label">Masih Dipinjam</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-number">${
+          transactions.filter((t) => t.status === "returned").length
+        }</span>
+        <span class="summary-label">Sudah Dikembalikan</span>
+      </div>
+    </div>
+  `;
+
+  return html;
+}
+
+function generateCirculationReportTable(transactions) {
+  let html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>ID Anggota</th>
+          <th>Nama</th>
+          <th>Buku</th>
+          <th>Tgl Pinjam</th>
+          <th>Jatuh Tempo</th>
+          <th>Tgl Dikembalikan</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  transactions.forEach((trx, index) => {
+    const isOverdue =
+      trx.status === "borrowed" &&
+      trx.dueDate < new Date().toISOString().slice(0, 10);
+    let status = trx.status === "borrowed" ? "Dipinjam" : "Dikembalikan";
+    let statusClass =
+      trx.status === "borrowed" ? "status-borrowed" : "status-available";
+
+    if (isOverdue) {
+      status = "Terlambat";
+      statusClass = "status-borrowed";
+    }
+
+    html += `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${trx.uid || "-"}</td>
+        <td>${trx.memberName || "-"}</td>
+        <td>${trx.bookTitle || "-"}</td>
+        <td>${formatDate(trx.borrowDate)}</td>
+        <td>${formatDate(trx.dueDate)}</td>
+        <td>${trx.returnDate ? formatDate(trx.returnDate) : "-"}</td>
+        <td class="status-cell">
+          <span class="status-badge ${statusClass}">${status}</span>
+        </td>
+      </tr>
+    `;
+  });
+
+  const borrowedCount = transactions.filter(
+    (t) => t.status === "borrowed"
+  ).length;
+  const returnedCount = transactions.filter(
+    (t) => t.status === "returned"
+  ).length;
+  const overdueCount = transactions.filter(
+    (t) =>
+      t.status === "borrowed" &&
+      t.dueDate < new Date().toISOString().slice(0, 10)
+  ).length;
+
+  html += `
+      </tbody>
+    </table>
+    <div class="report-summary">
+      <div class="summary-item">
+        <span class="summary-number">${transactions.length}</span>
+        <span class="summary-label">Total Sirkulasi</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-number">${borrowedCount}</span>
+        <span class="summary-label">Masih Dipinjam</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-number">${returnedCount}</span>
+        <span class="summary-label">Dikembalikan</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-number">${overdueCount}</span>
+        <span class="summary-label">Terlambat</span>
+      </div>
+    </div>
+  `;
+
+  return html;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function printCurrentReport() {
+  if (!currentReportData) {
+    alert("Tidak ada data laporan untuk dicetak!");
     return;
   }
 
+  const modalTitle = document.getElementById("reportModalTitle").textContent;
+  let modalContent = "";
+
+  // Untuk print, tampilkan semua data tanpa pagination
+  if (currentReportType === "daily") {
+    modalContent = generateDailyReportTable(currentReportData);
+  } else {
+    modalContent = generateCirculationReportTable(currentReportData);
+  }
+
   const win = window.open("", "_blank");
-  win.document.write(`
-    <html>
+  win.document.write(
+    `<html>
     <head>
-      <title>Laporan ${
-        type === "daily" ? "Harian" : "Bulanan"
-      } - ${date}</title>
+      <title>${modalTitle}</title>
       <style>
-        body { font-family: sans-serif; padding: 20px; }
-        h3 { margin-bottom: 10px; }
-        ul { padding-left: 20px; }
+        body { 
+          font-family: Arial, sans-serif; 
+          padding: 20px; 
+          color: #333;
+        }
+        h2 { 
+          text-align: center; 
+          margin-bottom: 30px;
+          color: #333;
+          border-bottom: 2px solid #333;
+          padding-bottom: 10px;
+        }
+        table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin-bottom: 20px;
+        }
+        th, td { 
+          border: 1px solid #333; 
+          padding: 8px 12px; 
+          text-align: left;
+        }
+        th { 
+          background-color: #f0f0f0; 
+          font-weight: bold;
+        }
+        .status-badge {
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: bold;
+        }
+        .status-available { background-color: #d4edda; color: #155724; }
+        .status-borrowed { background-color: #f8d7da; color: #721c24; }
+        .report-summary {
+          display: flex;
+          justify-content: space-around;
+          margin-top: 30px;
+          border: 2px solid #333;
+          padding: 20px;
+        }
+        .summary-item {
+          text-align: center;
+        }
+        .summary-number {
+          font-size: 24px;
+          font-weight: bold;
+          display: block;
+          margin-bottom: 5px;
+        }
+        .summary-label {
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        @media print {
+          body { margin: 0; }
+          .pagination-table { display: none !important; }
+        }
       </style>
     </head>
     <body>
-      ${content}
+      <h2>${modalTitle}</h2>
+      ${modalContent}
+      <div style="text-align: center; margin-top: 30px; font-size: 12px; color: #666;">
+        Dicetak pada: ${new Date().toLocaleString("id-ID")}
+      </div>
     </body>
-    </html>
-  `);
+    </html>`
+  );
   win.document.close();
   win.print();
 }
 
 // RFID Handler integration
+let memberRfidListening = false;
+let borrowRfidListening = false;
+let returnRfidListening = false;
+
+function toggleBorrowInputMethod() {
+  const method = document.querySelector(
+    'input[name="borrowInputMethod"]:checked'
+  ).value;
+  const rfidBtn = document.getElementById("borrowRfidBtn");
+  const statusElement = document.getElementById("borrowRfidStatus");
+
+  if (method === "manual") {
+    rfidBtn.style.display = "none";
+    statusElement.textContent = "Status: Mode input manual aktif";
+    statusElement.className = "rfid-status";
+    borrowRfidListening = false;
+  } else {
+    rfidBtn.style.display = "block";
+    statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+    statusElement.className = "rfid-status";
+  }
+}
+
+function toggleReturnInputMethod() {
+  const method = document.querySelector(
+    'input[name="returnInputMethod"]:checked'
+  ).value;
+  const rfidBtn = document.getElementById("returnRfidBtn");
+  const statusElement = document.getElementById("returnRfidStatus");
+
+  if (method === "manual") {
+    rfidBtn.style.display = "none";
+    statusElement.textContent = "Status: Mode input manual aktif";
+    statusElement.className = "rfid-status";
+    returnRfidListening = false;
+  } else {
+    rfidBtn.style.display = "block";
+    statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+    statusElement.className = "rfid-status";
+  }
+}
+
+function enableRFIDForBorrow() {
+  const statusElement = document.getElementById("borrowRfidStatus");
+  const btnElement = document.getElementById("borrowRfidBtn");
+
+  if (borrowRfidListening) {
+    // Stop listening
+    borrowRfidListening = false;
+    statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+    statusElement.className = "rfid-status";
+    btnElement.textContent = "📱 Tap Kartu";
+    btnElement.classList.remove("btn-danger");
+    return;
+  }
+
+  // Start listening
+  borrowRfidListening = true;
+  statusElement.textContent = "Status: Menunggu tap kartu RFID...";
+  statusElement.className = "rfid-status waiting";
+  btnElement.textContent = "⏹️ Stop";
+  btnElement.classList.add("btn-danger");
+
+  console.log("RFID listening enabled for borrow form");
+}
+
+function enableRFIDForReturn() {
+  const statusElement = document.getElementById("returnRfidStatus");
+  const btnElement = document.getElementById("returnRfidBtn");
+
+  if (returnRfidListening) {
+    // Stop listening
+    returnRfidListening = false;
+    statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+    statusElement.className = "rfid-status";
+    btnElement.textContent = "📱 Tap Kartu";
+    btnElement.classList.remove("btn-danger");
+    return;
+  }
+
+  // Start listening
+  returnRfidListening = true;
+  statusElement.textContent = "Status: Menunggu tap kartu RFID...";
+  statusElement.className = "rfid-status waiting";
+  btnElement.textContent = "⏹️ Stop";
+  btnElement.classList.add("btn-danger");
+
+  console.log("RFID listening enabled for return form");
+}
+
+function enableRFIDForMember() {
+  const statusElement = document.getElementById("memberRfidStatus");
+  const btnElement = document.getElementById("memberRfidBtn");
+
+  if (memberRfidListening) {
+    // Stop listening
+    memberRfidListening = false;
+    statusElement.textContent = "Status: Siap untuk tap kartu";
+    statusElement.className = "rfid-status";
+    btnElement.textContent = "📱 Tap Kartu";
+    btnElement.classList.remove("btn-danger");
+    return;
+  }
+
+  // Start listening
+  memberRfidListening = true;
+  statusElement.textContent = "Status: Menunggu tap kartu RFID...";
+  statusElement.className = "rfid-status waiting";
+  btnElement.textContent = "⏹️ Stop";
+  btnElement.classList.add("btn-danger");
+
+  console.log("RFID listening enabled for member form");
+}
 function setupRFIDListener() {
   console.log("Setting up RFID listener...");
   const rfidRef = database.ref("current_rfid");
@@ -1070,23 +1658,134 @@ function setupRFIDListener() {
       if (data && data.uid) {
         console.log("RFID data received:", data.uid);
 
-        // Jika berada di halaman Peminjaman
-        const borrowSection = document.getElementById("borrow-section");
-        if (borrowSection && !borrowSection.classList.contains("hidden")) {
-          document.getElementById("borrowUID").value = data.uid;
-          verifyBorrowUID();
+        // Jika sedang listening di form member
+        if (memberRfidListening) {
+          const memberUIDInput = document.getElementById("memberUID");
+          const statusElement = document.getElementById("memberRfidStatus");
+          const btnElement = document.getElementById("memberRfidBtn");
+
+          if (memberUIDInput && statusElement) {
+            // Check if UID already exists
+            let uidExists = false;
+            Object.values(allMembers).forEach((member) => {
+              if (member.uid === data.uid) {
+                uidExists = true;
+              }
+            });
+
+            if (uidExists) {
+              statusElement.textContent = "Status: UID sudah terdaftar!";
+              statusElement.className = "rfid-status error";
+            } else {
+              memberUIDInput.value = data.uid;
+              statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
+              statusElement.className = "rfid-status success";
+            }
+
+            // Stop listening
+            memberRfidListening = false;
+            btnElement.textContent = "📱 Tap Kartu";
+            btnElement.classList.remove("btn-danger");
+
+            // Reset status after 3 seconds
+            setTimeout(() => {
+              statusElement.textContent = "Status: Siap untuk tap kartu";
+              statusElement.className = "rfid-status";
+            }, 3000);
+          }
         }
 
-        // Jika berada di halaman Pengembalian
+        // Jika berada di halaman Peminjaman
+        if (borrowRfidListening) {
+          const borrowUIDInput = document.getElementById("borrowUID");
+          const statusElement = document.getElementById("borrowRfidStatus");
+          const btnElement = document.getElementById("borrowRfidBtn");
+
+          if (borrowUIDInput && statusElement) {
+            borrowUIDInput.value = data.uid;
+            statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
+            statusElement.className = "rfid-status success";
+
+            // Stop listening
+            borrowRfidListening = false;
+            btnElement.textContent = "📱 Tap Kartu";
+            btnElement.classList.remove("btn-danger");
+
+            // Verify the UID
+            verifyBorrowUID();
+
+            // Reset status after 3 seconds
+            setTimeout(() => {
+              statusElement.textContent =
+                "Status: Menunggu tap kartu anggota...";
+              statusElement.className = "rfid-status";
+            }, 3000);
+          }
+        }
+
+        // Jika sedang listening di form return
+        if (returnRfidListening) {
+          const returnUIDInput = document.getElementById("returnUID");
+          const statusElement = document.getElementById("returnRfidStatus");
+          const btnElement = document.getElementById("returnRfidBtn");
+
+          if (returnUIDInput && statusElement) {
+            returnUIDInput.value = data.uid;
+            statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
+            statusElement.className = "rfid-status success";
+
+            // Stop listening
+            returnRfidListening = false;
+            btnElement.textContent = "📱 Tap Kartu";
+            btnElement.classList.remove("btn-danger");
+
+            // Load member for return
+            loadMemberForReturn();
+
+            // Reset status after 3 seconds
+            setTimeout(() => {
+              statusElement.textContent =
+                "Status: Menunggu tap kartu anggota...";
+              statusElement.className = "rfid-status";
+            }, 3000);
+          }
+        }
+
+        // Jika berada di halaman Peminjaman dan tidak sedang listening secara aktif
+        const borrowSection = document.getElementById("borrow-section");
+        if (
+          borrowSection &&
+          !borrowSection.classList.contains("hidden") &&
+          !borrowRfidListening
+        ) {
+          const method = document.querySelector(
+            'input[name="borrowInputMethod"]:checked'
+          )?.value;
+          if (method === "rfid") {
+            document.getElementById("borrowUID").value = data.uid;
+            verifyBorrowUID();
+          }
+        }
+
+        // Jika berada di halaman Pengembalian dan tidak sedang listening secara aktif
         const returnSection = document.getElementById("return-section");
-        if (returnSection && !returnSection.classList.contains("hidden")) {
-          document.getElementById("returnUID").value = data.uid;
-          loadMemberForReturn();
+        if (
+          returnSection &&
+          !returnSection.classList.contains("hidden") &&
+          !returnRfidListening
+        ) {
+          const method = document.querySelector(
+            'input[name="returnInputMethod"]:checked'
+          )?.value;
+          if (method === "rfid") {
+            document.getElementById("returnUID").value = data.uid;
+            loadMemberForReturn();
+          }
         }
 
         // Feedback visual
         const statusElement = document.getElementById("borrowRfidStatus");
-        if (statusElement) {
+        if (statusElement && !memberRfidListening) {
           statusElement.textContent = "Status: Memproses UID...";
           statusElement.style.backgroundColor = "#d4edda";
           statusElement.style.color = "#155724";
