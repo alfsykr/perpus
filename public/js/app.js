@@ -1693,7 +1693,6 @@ function setupRFIDListener() {
 
   // Listen to both current_rfid and Userdata for RFID scans
   const rfidRef = database.ref("current_rfid");
-  const userdataRef = database.ref("Userdata");
 
   let lastProcessedUID = null;
   let lastProcessedTime = 0;
@@ -1701,7 +1700,7 @@ function setupRFIDListener() {
   // Function to process RFID data with debouncing
   function processRFIDData(uid) {
     const now = Date.now();
-    if (uid === lastProcessedUID && now - lastProcessedTime < 2000) {
+    if (uid === lastProcessedUID && now - lastProcessedTime < 3000) {
       console.log("Duplicate RFID scan ignored:", uid);
       return;
     }
@@ -1733,7 +1732,7 @@ function setupRFIDListener() {
     "child_changed",
     (snapshot) => {
       const data = snapshot.val();
-      if (data && data.readings) {
+      if (data && data.uid && data.status === "scanned") {
         // Get the latest reading
         const readings = data.readings;
         const readingKeys = Object.keys(readings).sort();
@@ -1746,6 +1745,7 @@ function setupRFIDListener() {
             latestReading.id_kartu
           );
           processRFIDData(latestReading.id_kartu);
+          rfidRef.update({ status: "processed" });
         }
       }
     },
@@ -1755,6 +1755,7 @@ function setupRFIDListener() {
   );
 
   // Also listen for new children in Userdata
+  const userdataRef = database.ref("Userdata");
   userdataRef.on(
     "child_added",
     (snapshot) => {
