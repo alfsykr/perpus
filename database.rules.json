@@ -1,4 +1,3 @@
-
 {
   "rules": {
     ".read": true,
@@ -14,7 +13,16 @@
     },
     "current_rfid": {
       ".read": true,
-      ".write": true
+      ".write": true,
+      "uid": {
+        ".validate": "newData.isString() && newData.val().length >= 8"
+      },
+      "timestamp": {
+        ".validate": "newData.isString()"
+      },
+      "status": {
+        ".validate": "newData.isString()"
+      }
     },
     "rfid_logs": {
       ".read": true,

@@ -560,34 +560,65 @@ function verifyBorrowUID() {
   const uid = document.getElementById("borrowUID").value.trim();
   const statusText = document.getElementById("borrowRfidStatus");
   const content = document.getElementById("borrowSectionContent");
-  const memberDetails = document.getElementById("borrowMemberDetails");
-
   let found = false;
+  let memberData = null;
 
   Object.entries(allMembers).forEach(([id, member]) => {
     if (member.uid === uid) {
       found = true;
+      memberData = member;
       statusText.textContent = `Status: UID ditemukan - ${member.name}`;
       statusText.style.backgroundColor = "#d4edda";
       statusText.style.color = "#155724";
       content.classList.remove("hidden");
-      memberDetails.innerHTML = `
-        <strong>${member.name}</strong><br>
-        Email: ${member.email || "-"}<br>
-        Tipe: ${member.type || "-"}
+
+      // Populate the borrow content
+      content.innerHTML = `
+        <div id="borrowMemberDetails" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <h3>📋 Detail Anggota</h3>
+          <strong>${member.name}</strong><br>
+          <small>Email: ${member.email || "-"}</small><br>
+          <small>Tipe: ${member.type || "-"}</small><br>
+          <small>UID: ${member.uid}</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="borrowBookSelect">📚 Pilih Buku:</label>
+          <select id="borrowBookSelect" style="width: 70%; display: inline-block;">
+            <option value="">-- Pilih Buku --</option>
+          </select>
+          <button type="button" class="btn" onclick="selectBookForBorrow()" style="margin-left: 10px;">➕ Tambah</button>
+        </div>
+        
+        <div class="form-group">
+          <label>📖 Buku yang Dipilih:</label>
+          <ul id="selectedBooksList" style="margin-left: 20px; min-height: 40px; border: 1px dashed #ccc; padding: 10px; border-radius: 5px;">
+            
+          </ul>
+          <small style="color: #666;">Maksimal 3 buku per peminjaman</small>
+        </div>
+        
+        <div class="form-group" style="margin-top: 20px;">
+          <button type="button" class="btn btn-success" onclick="processBorrow()" style="width: 100%; padding: 15px; font-size: 1.1em;">
+            📤 Proses Peminjaman
+          </button>
+        </div>
       `;
+
+      // Update book options after content is added
+      updateBookOptions();
     }
   });
 
   if (!found && uid) {
     content.classList.add("hidden");
-    memberDetails.innerHTML = "";
+    content.innerHTML = "";
     statusText.textContent = "Status: UID tidak dikenali.";
     statusText.style.backgroundColor = "#f8d7da";
     statusText.style.color = "#721c24";
   } else if (!uid) {
     content.classList.add("hidden");
-    memberDetails.innerHTML = "";
+    content.innerHTML = "";
     statusText.textContent = "Status: Menunggu tap kartu anggota...";
     statusText.style.backgroundColor = "#e3f2fd";
     statusText.style.color = "#0d47a1";
