@@ -151,7 +151,8 @@
               <input
                 type="text"
                 id="borrowUID"
-                placeholder="Tap kartu atau masukkan manual"
+                placeholder="Tap kartu RFID terlebih dahulu"
+                readonly
                 oninput="verifyBorrowUID()"
                 autocomplete="off"
               />
@@ -165,7 +166,11 @@
               </button>
             </div>
             <div id="borrowRfidStatus" class="rfid-status">
-              Status: Menunggu tap kartu anggota...
+              Status: Tap kartu RFID untuk mendapatkan UID
+            </div>
+            <small style="color: #666; margin-top: 5px; display: block;">
+              📋 Alur: 1) Tap kartu RFID → 2) Lengkapi data anggota → 3) Simpan
+            </small>
             </div>
 
             <div id="borrowSectionContent" class="hidden">
@@ -173,7 +178,7 @@
             </div>
           </div>
         </div>
-
+        <!-- Pengembalian Section -->
         <div id="return-section" class="hidden">
           <h2 class="section-title">📥 Pengembalian Buku</h2>
 
@@ -230,7 +235,7 @@
             <div id="borrowedBooksList"></div>
           </div>
         </div>
-
+        <!-- Laporan Section -->
         <div id="reports-section" class="hidden">
           <h2 class="section-title">📋 Laporan</h2>
           <div class="grid">
@@ -258,27 +263,6 @@
               <button class="btn" onclick="generateCirculationReport()">
                 👁️ Lihat Laporan Sirkulasi
               </button>
-            </div>
-          </div>
-        </div>
-        <!-- Report Modal -->
-        <div id="reportModal" class="modal">
-          <div class="modal-content report-modal">
-            <span class="close" onclick="closeModal('reportModal')"
-              >&times;</span
-            >
-            <div class="report-header">
-              <h2 id="reportModalTitle">📋 Laporan</h2>
-              <button
-                class="btn btn-success"
-                onclick="printCurrentReport()"
-                id="printReportBtn"
-              >
-                🖨️ Print Laporan
-              </button>
-            </div>
-            <div id="reportModalContent">
-              <!-- Report content will be inserted here -->
             </div>
           </div>
         </div>
@@ -311,11 +295,51 @@
                 💾 Simpan Pengaturan
               </button>
             </div>
+            <div class="chart-container">
+              <h3>🔒 Pengaturan Keamanan</h3>
+              <div class="form-group">
+                <label>Backup Otomatis:</label>
+                <select id="autoBackup">
+                  <option value="daily">Harian</option>
+                  <option value="weekly">Mingguan</option>
+                  <option value="monthly">Bulanan</option>
+                  <option value="disabled">Nonaktif</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Timeout Session (menit):</label>
+                <input type="number" id="sessionTimeout" value="30" min="5" />
+              </div>
+              <button class="btn" onclick="saveSecuritySettings()">
+                🔒 Simpan Keamanan
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Report Modal -->
+    <div id="reportModal" class="modal">
+      <div class="modal-content report-modal">
+        <span class="close" onclick="closeModal('reportModal')">&times;</span>
+        <div class="report-header">
+          <h2 id="reportModalTitle">📋 Laporan</h2>
+          <button
+            class="btn btn-success"
+            onclick="printCurrentReport()"
+            id="printReportBtn"
+          >
+            🖨️ Print Laporan
+          </button>
+        </div>
+        <div id="reportModalContent">
+          <!-- Report content will be inserted here -->
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
     <!-- Book Modal -->
     <div id="bookModal" class="modal">
       <div class="modal-content">

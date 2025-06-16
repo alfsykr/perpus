@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("DOM loaded, initializing app...");
   initializeForms();
   loadData();
+  loadSettings();
   initializeCharts();
   setupRFIDListener();
 });
@@ -572,12 +573,14 @@ function verifyBorrowUID() {
   const content = document.getElementById("borrowSectionContent");
   let found = false;
   let memberData = null;
+  let memberId = null;
 
   Object.entries(allMembers).forEach(([id, member]) => {
     if (member.uid === uid) {
       found = true;
       memberData = member;
-      statusText.textContent = `Status: UID ditemukan - ${member.name}`;
+      memberId = id;
+      statusText.textContent = `Status: Anggota ditemukan - ${member.name}`;
       statusText.style.backgroundColor = "#d4edda";
       statusText.style.color = "#155724";
       content.classList.remove("hidden");
@@ -1050,11 +1053,12 @@ function previousActivityPage() {
 
 // Navigation
 function showSection(section) {
+  console.log("Showing section:", section);
   // Reset RFID listening states when switching sections
   memberRfidListening = false;
   borrowRfidListening = false;
   returnRfidListening = false;
-
+  // Hide all sections
   [
     "dashboard",
     "books",
@@ -1065,11 +1069,21 @@ function showSection(section) {
     "settings",
   ].forEach((id) => {
     const element = document.getElementById(id + "-section");
-    if (element) element.classList.add("hidden");
+    if (element) {
+      element.classList.add("hidden");
+      element.style.display = "none";
+    }
   });
 
+  // Show target section
   const targetSection = document.getElementById(section + "-section");
-  if (targetSection) targetSection.classList.remove("hidden");
+  if (targetSection) {
+    targetSection.classList.remove("hidden");
+    targetSection.style.display = "block";
+    console.log("Target section found and shown:", section);
+  } else {
+    console.error("Target section not found:", section + "-section");
+  }
 
   // Reset RFID button states
   const borrowRfidBtn = document.getElementById("borrowRfidBtn");
@@ -1093,7 +1107,7 @@ function showSection(section) {
     returnRfidStatus.textContent = "Status: Menunggu tap kartu anggota...";
     returnRfidStatus.className = "rfid-status";
   }
-
+  // Update active navigation button
   document
     .querySelectorAll(".nav-btn")
     .forEach((btn) => btn.classList.remove("active"));
@@ -1889,20 +1903,19 @@ function handleMemberRFID(uid) {
     statusElement.textContent = `Status: UID berhasil dibaca - ${uid.substring(
       0,
       12
-    )}...`;
+    )}... Silakan lengkapi data anggota.`;
     statusElement.className = "rfid-status success";
     statusElement.style.backgroundColor = "#d4edda";
     statusElement.style.color = "#155724";
 
-    // Focus on the name field
-    // Auto-focus on name field and show helpful message
-    const nameField = document.getElementById("memberName");
-    if (nameField) {
-      setTimeout(() => {
+    // Focus ke field nama untuk input manual
+    setTimeout(() => {
+      const nameField = document.getElementById("memberName");
+      if (nameField) {
         nameField.focus();
         nameField.placeholder = "Masukkan nama lengkap anggota";
-      }, 100);
-    }
+      }
+    }, 500);
 
     // Show success feedback with sound simulation
     if (typeof Audio !== "undefined") {
@@ -1956,6 +1969,108 @@ function handleMemberRFID(uid) {
   }, 8000);
 }
 
+function updateSelectedBooks() {
+  const bookSelect = document.getElementById("bookSelect");
+  const selectedBooksList = document.getElementById("selectedBooksList");
+  const borrowBtn = document.getElementById("borrowBtn");
+
+  if (!bookSelect.value) return;
+
+  const bookId = bookSelect.value;
+  const book = allBooks[bookId];
+
+  if (!selectedBooks.find((b) => b.id === bookId)) {
+    selectedBooks.push({
+      id: bookId,
+      title: book.title,
+      author: book.author,
+    });
+
+    updateSelectedBooksDisplay();
+    bookSelect.value = "";
+  }
+
+  borrowBtn.disabled = selectedBooks.length === 0;
+}
+
+function updateSelectedBooksDisplay() {
+  const selectedBooksList = document.getElementById("selectedBooksList");
+
+  if (selectedBooks.length === 0) {
+    selectedBooksList.innerHTML = "";
+    return;
+  }
+
+  selectedBooksList.innerHTML = `
+    <div class="selected-books">
+      <h4>📚 Buku yang akan dipinjam:</h4>
+      ${selectedBooks
+        .map(
+          (book, index) => `
+        <div class="selected-book-item">
+          <span>${book.title} - ${book.author}</span>
+          <button type="button" onclick="removeSelectedBook(${index})" class="btn-small btn-danger">❌</button>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function removeSelectedBook(index) {
+  selectedBooks.splice(index, 1);
+  updateSelectedBooksDisplay();
+  document.getElementById("borrowBtn").disabled = selectedBooks.length === 0;
+}
+
+function processBorrow(memberId) {
+  if (selectedBooks.length === 0) {
+    alert("Pilih minimal 1 buku untuk dipinjam!");
+    return;
+  }
+
+  const borrowDate = new Date().toISOString();
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 7); // 7 days loan period
+
+  const promises = selectedBooks.map((book) => {
+    const transactionData = {
+      memberId: memberId,
+      bookId: book.id,
+      borrowDate: borrowDate,
+      dueDate: dueDate.toISOString(),
+      status: "borrowed",
+      memberName: allMembers[memberId].name,
+      bookTitle: book.title,
+    };
+
+    return database.ref("Transactions").push(transactionData);
+  });
+
+  // Update book stock
+  const stockPromises = selectedBooks.map((book) => {
+    const currentStock = allBooks[book.id].stock;
+    return database.ref(`Books/${book.id}/stock`).set(currentStock - 1);
+  });
+
+  Promise.all([...promises, ...stockPromises])
+    .then(() => {
+      alert(`✅ Berhasil memproses peminjaman ${selectedBooks.length} buku!`);
+      selectedBooks = [];
+      document.getElementById("borrowSectionContent").classList.add("hidden");
+      document.getElementById("borrowUID").value = "";
+      document.getElementById("borrowRfidStatus").textContent =
+        "Status: Menunggu tap kartu anggota...";
+      document.getElementById("borrowRfidStatus").style.backgroundColor = "";
+      document.getElementById("borrowRfidStatus").style.color = "";
+    })
+    .catch((error) => {
+      console.error("Error processing borrow:", error);
+      alert("❌ Gagal memproses peminjaman: " + error.message);
+    });
+}
+
 function handleBorrowRFID(uid) {
   console.log("Handling borrow RFID:", uid);
 
@@ -1974,11 +2089,13 @@ function handleBorrowRFID(uid) {
   // Check if member exists
   let memberFound = false;
   let memberName = "";
+  let memberId = "";
 
-  Object.values(allMembers || {}).forEach((member) => {
+  Object.entries(allMembers || {}).forEach(([id, member]) => {
     if (member && member.uid === uid) {
       memberFound = true;
       memberName = member.name;
+      memberId = id;
     }
   });
 
@@ -1988,13 +2105,32 @@ function handleBorrowRFID(uid) {
     statusElement.style.backgroundColor = "#d4edda";
     statusElement.style.color = "#155724";
 
-    // Automatically verify the UID
+    // Automatically verify the UID and show borrow interface
     setTimeout(() => verifyBorrowUID(), 500);
   } else {
-    statusElement.textContent = `Status: UID ${uid} tidak terdaftar!`;
+    statusElement.textContent = `Status: Kartu tidak terdaftar! Silakan daftar terlebih dahulu.`;
     statusElement.className = "rfid-status error";
     statusElement.style.backgroundColor = "#f8d7da";
     statusElement.style.color = "#721c24";
+
+    // Show alert and redirect to member registration
+    setTimeout(() => {
+      const shouldRegister = confirm(
+        "Kartu RFID belum terdaftar!\n\nApakah Anda ingin mendaftarkan kartu ini sekarang?"
+      );
+      if (shouldRegister) {
+        showSection("members");
+        // Pre-fill UID in member form
+        setTimeout(() => {
+          const memberUIDInput = document.getElementById("memberUID");
+          const memberNameInput = document.getElementById("memberName");
+          if (memberUIDInput && memberNameInput) {
+            memberUIDInput.value = uid;
+            memberNameInput.focus();
+          }
+        }, 300);
+      }
+    }, 1000);
   }
 
   // Stop listening if was actively listening
@@ -2037,11 +2173,13 @@ function handleReturnRFID(uid) {
   // Check if member exists
   let memberFound = false;
   let memberName = "";
+  let memberId = "";
 
-  Object.values(allMembers || {}).forEach((member) => {
+  Object.entries(allMembers || {}).forEach(([id, member]) => {
     if (member && member.uid === uid) {
       memberFound = true;
       memberName = member.name;
+      memberId = id;
     }
   });
 
@@ -2054,16 +2192,35 @@ function handleReturnRFID(uid) {
     // Automatically load member for return
     setTimeout(() => loadMemberForReturn(), 500);
   } else {
-    statusElement.textContent = `Status: UID ${uid} tidak terdaftar!`;
+    statusElement.textContent = `Status: Kartu tidak terdaftar! Silakan daftar terlebih dahulu.`;
     statusElement.className = "rfid-status error";
     statusElement.style.backgroundColor = "#f8d7da";
     statusElement.style.color = "#721c24";
+
+    // Show alert and redirect to member registration
+    setTimeout(() => {
+      const shouldRegister = confirm(
+        "Kartu RFID belum terdaftar!\n\nApakah Anda ingin mendaftarkan kartu ini sekarang?"
+      );
+      if (shouldRegister) {
+        showSection("members");
+        // Pre-fill UID in member form
+        setTimeout(() => {
+          const memberUIDInput = document.getElementById("memberUID");
+          const memberNameInput = document.getElementById("memberName");
+          if (memberUIDInput && memberNameInput) {
+            memberUIDInput.value = uid;
+            memberNameInput.focus();
+          }
+        }, 300);
+      }
+    }, 1000);
   }
 
   // Stop listening if was actively listening
   if (returnRfidListening) {
     returnRfidListening = false;
-    if (btnElement) {
+    if (btnElementent) {
       btnElement.textContent = "📱 Tap Kartu";
       btnElement.classList.remove("btn-danger");
     }
@@ -2080,4 +2237,93 @@ function handleReturnRFID(uid) {
       }
     }, 5000);
   }
+}
+// Settings Functions
+function saveSettings() {
+  const borrowDuration = document.getElementById("borrowDuration").value;
+  const maxBooksPerMember = document.getElementById("maxBooksPerMember").value;
+  const finePerDay = document.getElementById("finePerDay").value;
+
+  const settings = {
+    borrowDuration: parseInt(borrowDuration) || 7,
+    maxBooksPerMember: parseInt(maxBooksPerMember) || 3,
+    finePerDay: parseInt(finePerDay) || 1000,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Save to Firebase
+  database
+    .ref("Settings/borrowing")
+    .set(settings)
+    .then(() => {
+      alert("Pengaturan berhasil disimpan!");
+      console.log("Settings saved:", settings);
+    })
+    .catch((error) => {
+      console.error("Error saving settings:", error);
+      alert("Gagal menyimpan pengaturan: " + error.message);
+    });
+}
+
+function saveSecuritySettings() {
+  const autoBackup = document.getElementById("autoBackup").value;
+  const sessionTimeout = document.getElementById("sessionTimeout").value;
+
+  const securitySettings = {
+    autoBackup: autoBackup || "weekly",
+    sessionTimeout: parseInt(sessionTimeout) || 30,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Save to Firebase
+  database
+    .ref("Settings/security")
+    .set(securitySettings)
+    .then(() => {
+      alert("Pengaturan keamanan berhasil disimpan!");
+      console.log("Security settings saved:", securitySettings);
+    })
+    .catch((error) => {
+      console.error("Error saving security settings:", error);
+      alert("Gagal menyimpan pengaturan keamanan: " + error.message);
+    });
+}
+
+// Load settings on page load
+function loadSettings() {
+  database
+    .ref("Settings")
+    .once("value")
+    .then((snapshot) => {
+      const settings = snapshot.val();
+      if (settings) {
+        // Load borrowing settings
+        if (settings.borrowing) {
+          const borrowDurationEl = document.getElementById("borrowDuration");
+          const maxBooksEl = document.getElementById("maxBooksPerMember");
+          const finePerDayEl = document.getElementById("finePerDay");
+
+          if (borrowDurationEl)
+            borrowDurationEl.value = settings.borrowing.borrowDuration || 7;
+          if (maxBooksEl)
+            maxBooksEl.value = settings.borrowing.maxBooksPerMember || 3;
+          if (finePerDayEl)
+            finePerDayEl.value = settings.borrowing.finePerDay || 1000;
+        }
+
+        // Load security settings
+        if (settings.security) {
+          const autoBackupEl = document.getElementById("autoBackup");
+          const sessionTimeoutEl = document.getElementById("sessionTimeout");
+
+          if (autoBackupEl)
+            autoBackupEl.value = settings.security.autoBackup || "weekly";
+          if (sessionTimeoutEl)
+            sessionTimeoutEl.value = settings.security.sessionTimeout || 30;
+        }
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading settings:", error);
+    });
 }
