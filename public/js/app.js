@@ -1059,7 +1059,7 @@ function showSection(section) {
   borrowRfidListening = false;
   returnRfidListening = false;
   // Hide all sections
-  [
+  const sections = [
     "dashboard",
     "books",
     "members",
@@ -1067,7 +1067,8 @@ function showSection(section) {
     "return",
     "reports",
     "settings",
-  ].forEach((id) => {
+  ];
+  sections.forEach((id) => {
     const element = document.getElementById(id + "-section");
     if (element) {
       element.classList.add("hidden");
@@ -1080,6 +1081,8 @@ function showSection(section) {
   if (targetSection) {
     targetSection.classList.remove("hidden");
     targetSection.style.display = "block";
+    targetSection.style.position = "relative";
+    targetSection.style.zIndex = "1";
     console.log("Target section found and shown:", section);
   } else {
     console.error("Target section not found:", section + "-section");

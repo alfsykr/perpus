@@ -1086,9 +1086,10 @@ body {
 /* Ensure all sections are properly displayed */
 .content-area > div {
   min-height: 200px;
-  padding: 20px;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .content-area > div.hidden {
@@ -1097,21 +1098,29 @@ body {
 
 .content-area > div:not(.hidden) {
   display: block !important;
-  position: relative;
-  z-index: 1;
 }
 
-/* Specific fixes for problematic sections */
+/* All main sections should have consistent styling */
+#dashboard-section,
+#books-section,
+#members-section,
+#borrow-section,
 #return-section,
 #reports-section,
 #settings-section {
-  display: block;
   width: 100%;
   min-height: 400px;
   background: transparent;
   position: relative;
+  padding: 0;
+  margin: 0;
 }
 
+/* Hidden state for all sections */
+#dashboard-section.hidden,
+#books-section.hidden,
+#members-section.hidden,
+#borrow-section.hidden,
 #return-section.hidden,
 #reports-section.hidden,
 #settings-section.hidden {
