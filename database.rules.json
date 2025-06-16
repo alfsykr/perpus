@@ -27,6 +27,11 @@
     "rfid_logs": {
       ".read": true,
       ".write": true
+    },
+    "Userdata": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["id_kartu"]
     }
   }
 }

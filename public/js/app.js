@@ -178,7 +178,17 @@ function loadData() {
   }
 
   dataLoaded = true;
-
+  // Load Userdata untuk mendapatkan UID kartu
+  database.ref("Userdata").on(
+    "value",
+    (snap) => {
+      console.log("Userdata received:", snap.val());
+      // Tidak perlu update UI untuk userdata, hanya untuk referensi
+    },
+    (error) => {
+      console.error("Error loading userdata:", error);
+    }
+  );
   // Load Books
   database.ref("Books").on(
     "value",
@@ -1680,163 +1690,333 @@ function enableRFIDForMember() {
 }
 function setupRFIDListener() {
   console.log("Setting up RFID listener...");
-  const rfidRef = database.ref("current_rfid");
 
+  // Listen to both current_rfid and Userdata for RFID scans
+  const rfidRef = database.ref("current_rfid");
+  const userdataRef = database.ref("Userdata");
+
+  let lastProcessedUID = null;
+  let lastProcessedTime = 0;
+
+  // Function to process RFID data with debouncing
+  function processRFIDData(uid) {
+    const now = Date.now();
+    if (uid === lastProcessedUID && now - lastProcessedTime < 2000) {
+      console.log("Duplicate RFID scan ignored:", uid);
+      return;
+    }
+
+    lastProcessedUID = uid;
+    lastProcessedTime = now;
+
+    console.log("Processing RFID data:", uid);
+    handleRFIDData(uid);
+  }
+
+  // Listen to current_rfid for immediate scans
   rfidRef.on(
     "value",
-    async (snapshot) => {
+    (snapshot) => {
       const data = snapshot.val();
       if (data && data.uid) {
-        console.log("RFID data received:", data.uid);
-
-        // Jika sedang listening di form member
-        if (memberRfidListening) {
-          const memberUIDInput = document.getElementById("memberUID");
-          const statusElement = document.getElementById("memberRfidStatus");
-          const btnElement = document.getElementById("memberRfidBtn");
-
-          if (memberUIDInput && statusElement) {
-            // Check if UID already exists
-            let uidExists = false;
-            Object.values(allMembers).forEach((member) => {
-              if (member.uid === data.uid) {
-                uidExists = true;
-              }
-            });
-
-            if (uidExists) {
-              statusElement.textContent = "Status: UID sudah terdaftar!";
-              statusElement.className = "rfid-status error";
-            } else {
-              memberUIDInput.value = data.uid;
-              statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
-              statusElement.className = "rfid-status success";
-            }
-
-            // Stop listening
-            memberRfidListening = false;
-            btnElement.textContent = "📱 Tap Kartu";
-            btnElement.classList.remove("btn-danger");
-
-            // Reset status after 3 seconds
-            setTimeout(() => {
-              statusElement.textContent = "Status: Siap untuk tap kartu";
-              statusElement.className = "rfid-status";
-            }, 3000);
-          }
-        }
-
-        // Jika berada di halaman Peminjaman
-        if (borrowRfidListening) {
-          const borrowUIDInput = document.getElementById("borrowUID");
-          const statusElement = document.getElementById("borrowRfidStatus");
-          const btnElement = document.getElementById("borrowRfidBtn");
-
-          if (borrowUIDInput && statusElement) {
-            borrowUIDInput.value = data.uid;
-            statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
-            statusElement.className = "rfid-status success";
-
-            // Stop listening
-            borrowRfidListening = false;
-            btnElement.textContent = "📱 Tap Kartu";
-            btnElement.classList.remove("btn-danger");
-
-            // Verify the UID
-            verifyBorrowUID();
-
-            // Reset status after 3 seconds
-            setTimeout(() => {
-              statusElement.textContent =
-                "Status: Menunggu tap kartu anggota...";
-              statusElement.className = "rfid-status";
-            }, 3000);
-          }
-        }
-
-        // Jika sedang listening di form return
-        if (returnRfidListening) {
-          const returnUIDInput = document.getElementById("returnUID");
-          const statusElement = document.getElementById("returnRfidStatus");
-          const btnElement = document.getElementById("returnRfidBtn");
-
-          if (returnUIDInput && statusElement) {
-            returnUIDInput.value = data.uid;
-            statusElement.textContent = `Status: UID berhasil ditambahkan - ${data.uid}`;
-            statusElement.className = "rfid-status success";
-
-            // Stop listening
-            returnRfidListening = false;
-            btnElement.textContent = "📱 Tap Kartu";
-            btnElement.classList.remove("btn-danger");
-
-            // Load member for return
-            loadMemberForReturn();
-
-            // Reset status after 3 seconds
-            setTimeout(() => {
-              statusElement.textContent =
-                "Status: Menunggu tap kartu anggota...";
-              statusElement.className = "rfid-status";
-            }, 3000);
-          }
-        }
-
-        // Jika berada di halaman Peminjaman dan tidak sedang listening secara aktif
-        const borrowSection = document.getElementById("borrow-section");
-        if (
-          borrowSection &&
-          !borrowSection.classList.contains("hidden") &&
-          !borrowRfidListening
-        ) {
-          const method = document.querySelector(
-            'input[name="borrowInputMethod"]:checked'
-          )?.value;
-          if (method === "rfid") {
-            document.getElementById("borrowUID").value = data.uid;
-            verifyBorrowUID();
-          }
-        }
-
-        // Jika berada di halaman Pengembalian dan tidak sedang listening secara aktif
-        const returnSection = document.getElementById("return-section");
-        if (
-          returnSection &&
-          !returnSection.classList.contains("hidden") &&
-          !returnRfidListening
-        ) {
-          const method = document.querySelector(
-            'input[name="returnInputMethod"]:checked'
-          )?.value;
-          if (method === "rfid") {
-            document.getElementById("returnUID").value = data.uid;
-            loadMemberForReturn();
-          }
-        }
-
-        // Feedback visual
-        const statusElement = document.getElementById("borrowRfidStatus");
-        if (statusElement && !memberRfidListening) {
-          statusElement.textContent = "Status: Memproses UID...";
-          statusElement.style.backgroundColor = "#d4edda";
-          statusElement.style.color = "#155724";
-          setTimeout(() => {
-            statusElement.style.backgroundColor = "";
-            statusElement.style.color = "";
-          }, 2000);
-        }
-
-        // Reset UID agar bisa tap kartu berikutnya
-        setTimeout(() => {
-          database
-            .ref("current_rfid")
-            .set({})
-            .catch((error) => console.error("Error clearing RFID:", error));
-        }, 2000);
+        console.log("RFID data received from current_rfid:", data.uid);
+        processRFIDData(data.uid);
       }
     },
     (error) => {
-      console.error("Error in RFID listener:", error);
+      console.error("Error in current_rfid listener:", error);
     }
   );
+
+  // Listen to Userdata for new card readings
+  userdataRef.on(
+    "child_changed",
+    (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.readings) {
+        // Get the latest reading
+        const readings = data.readings;
+        const readingKeys = Object.keys(readings).sort();
+        const latestReadingKey = readingKeys[readingKeys.length - 1];
+        const latestReading = readings[latestReadingKey];
+
+        if (latestReading && latestReading.id_kartu) {
+          console.log(
+            "RFID data received from Userdata:",
+            latestReading.id_kartu
+          );
+          processRFIDData(latestReading.id_kartu);
+        }
+      }
+    },
+    (error) => {
+      console.error("Error in Userdata listener:", error);
+    }
+  );
+
+  // Also listen for new children in Userdata
+  userdataRef.on(
+    "child_added",
+    (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.readings) {
+        const readings = data.readings;
+        const readingKeys = Object.keys(readings).sort();
+        const latestReadingKey = readingKeys[readingKeys.length - 1];
+        const latestReading = readings[latestReadingKey];
+
+        if (latestReading && latestReading.id_kartu) {
+          console.log("New RFID data from Userdata:", latestReading.id_kartu);
+          processRFIDData(latestReading.id_kartu);
+        }
+      }
+    },
+    (error) => {
+      console.error("Error in Userdata child_added listener:", error);
+    }
+  );
+}
+
+function handleRFIDData(uid) {
+  console.log("Handling RFID data:", uid);
+
+  if (!uid || uid.trim() === "") {
+    console.log("Empty UID received, ignoring");
+    return;
+  }
+
+  // Clean the UID
+  uid = uid.trim();
+
+  // Check which section is currently active
+  const currentSection = getCurrentActiveSection();
+  console.log("Current active section:", currentSection);
+
+  // Handle RFID for Member Registration
+  if (currentSection === "members" || memberRfidListening) {
+    handleMemberRFID(uid);
+    return;
+  }
+
+  // Handle RFID for Borrowing
+  if (currentSection === "borrow" || borrowRfidListening) {
+    handleBorrowRFID(uid);
+    return;
+  }
+
+  // Handle RFID for Returning
+  if (currentSection === "return" || returnRfidListening) {
+    handleReturnRFID(uid);
+    return;
+  }
+
+  console.log("No active section for RFID handling");
+}
+
+function getCurrentActiveSection() {
+  const sections = [
+    "dashboard",
+    "books",
+    "members",
+    "borrow",
+    "return",
+    "reports",
+    "settings",
+  ];
+
+  for (const section of sections) {
+    const element = document.getElementById(section + "-section");
+    if (element && !element.classList.contains("hidden")) {
+      return section;
+    }
+  }
+  return null;
+}
+
+function handleMemberRFID(uid) {
+  console.log("Handling member RFID:", uid);
+
+  const memberUIDInput = document.getElementById("memberUID");
+  const statusElement = document.getElementById("memberRfidStatus");
+  const btnElement = document.getElementById("memberRfidBtn");
+
+  if (!memberUIDInput || !statusElement) {
+    console.log("Member form elements not found");
+    return;
+  }
+
+  // Check if UID already exists
+  let uidExists = false;
+  let existingMemberName = "";
+
+  Object.values(allMembers || {}).forEach((member) => {
+    if (member && member.uid === uid) {
+      uidExists = true;
+      existingMemberName = member.name;
+    }
+  });
+
+  if (uidExists) {
+    statusElement.textContent = `Status: UID sudah terdaftar untuk ${existingMemberName}!`;
+    statusElement.className = "rfid-status error";
+    statusElement.style.backgroundColor = "#f8d7da";
+    statusElement.style.color = "#721c24";
+  } else {
+    memberUIDInput.value = uid;
+    statusElement.textContent = `Status: UID berhasil dibaca - ${uid}`;
+    statusElement.className = "rfid-status success";
+    statusElement.style.backgroundColor = "#d4edda";
+    statusElement.style.color = "#155724";
+
+    // Focus on the name field
+    const nameField = document.getElementById("memberName");
+    if (nameField) {
+      setTimeout(() => nameField.focus(), 100);
+    }
+  }
+
+  // Stop listening if was actively listening
+  if (memberRfidListening) {
+    memberRfidListening = false;
+    if (btnElement) {
+      btnElement.textContent = "📱 Tap Kartu";
+      btnElement.classList.remove("btn-danger");
+    }
+  }
+
+  // Reset status after 5 seconds
+  setTimeout(() => {
+    if (statusElement) {
+      statusElement.textContent = "Status: Siap untuk tap kartu";
+      statusElement.className = "rfid-status";
+      statusElement.style.backgroundColor = "";
+      statusElement.style.color = "";
+    }
+  }, 5000);
+}
+
+function handleBorrowRFID(uid) {
+  console.log("Handling borrow RFID:", uid);
+
+  const borrowUIDInput = document.getElementById("borrowUID");
+  const statusElement = document.getElementById("borrowRfidStatus");
+  const btnElement = document.getElementById("borrowRfidBtn");
+
+  if (!borrowUIDInput || !statusElement) {
+    console.log("Borrow form elements not found");
+    return;
+  }
+
+  // Set the UID
+  borrowUIDInput.value = uid;
+
+  // Check if member exists
+  let memberFound = false;
+  let memberName = "";
+
+  Object.values(allMembers || {}).forEach((member) => {
+    if (member && member.uid === uid) {
+      memberFound = true;
+      memberName = member.name;
+    }
+  });
+
+  if (memberFound) {
+    statusElement.textContent = `Status: Anggota ditemukan - ${memberName}`;
+    statusElement.className = "rfid-status success";
+    statusElement.style.backgroundColor = "#d4edda";
+    statusElement.style.color = "#155724";
+
+    // Automatically verify the UID
+    setTimeout(() => verifyBorrowUID(), 500);
+  } else {
+    statusElement.textContent = `Status: UID ${uid} tidak terdaftar!`;
+    statusElement.className = "rfid-status error";
+    statusElement.style.backgroundColor = "#f8d7da";
+    statusElement.style.color = "#721c24";
+  }
+
+  // Stop listening if was actively listening
+  if (borrowRfidListening) {
+    borrowRfidListening = false;
+    if (btnElement) {
+      btnElement.textContent = "📱 Tap Kartu";
+      btnElement.classList.remove("btn-danger");
+    }
+  }
+
+  // Reset status after 5 seconds if member not found
+  if (!memberFound) {
+    setTimeout(() => {
+      if (statusElement) {
+        statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+        statusElement.className = "rfid-status";
+        statusElement.style.backgroundColor = "";
+        statusElement.style.color = "";
+      }
+    }, 5000);
+  }
+}
+
+function handleReturnRFID(uid) {
+  console.log("Handling return RFID:", uid);
+
+  const returnUIDInput = document.getElementById("returnUID");
+  const statusElement = document.getElementById("returnRfidStatus");
+  const btnElement = document.getElementById("returnRfidBtn");
+
+  if (!returnUIDInput || !statusElement) {
+    console.log("Return form elements not found");
+    return;
+  }
+
+  // Set the UID
+  returnUIDInput.value = uid;
+
+  // Check if member exists
+  let memberFound = false;
+  let memberName = "";
+
+  Object.values(allMembers || {}).forEach((member) => {
+    if (member && member.uid === uid) {
+      memberFound = true;
+      memberName = member.name;
+    }
+  });
+
+  if (memberFound) {
+    statusElement.textContent = `Status: Anggota ditemukan - ${memberName}`;
+    statusElement.className = "rfid-status success";
+    statusElement.style.backgroundColor = "#d4edda";
+    statusElement.style.color = "#155724";
+
+    // Automatically load member for return
+    setTimeout(() => loadMemberForReturn(), 500);
+  } else {
+    statusElement.textContent = `Status: UID ${uid} tidak terdaftar!`;
+    statusElement.className = "rfid-status error";
+    statusElement.style.backgroundColor = "#f8d7da";
+    statusElement.style.color = "#721c24";
+  }
+
+  // Stop listening if was actively listening
+  if (returnRfidListening) {
+    returnRfidListening = false;
+    if (btnElement) {
+      btnElement.textContent = "📱 Tap Kartu";
+      btnElement.classList.remove("btn-danger");
+    }
+  }
+
+  // Reset status after 5 seconds if member not found
+  if (!memberFound) {
+    setTimeout(() => {
+      if (statusElement) {
+        statusElement.textContent = "Status: Menunggu tap kartu anggota...";
+        statusElement.className = "rfid-status";
+        statusElement.style.backgroundColor = "";
+        statusElement.style.color = "";
+      }
+    }, 5000);
+  }
 }
