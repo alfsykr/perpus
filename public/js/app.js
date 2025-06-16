@@ -1691,35 +1691,52 @@ function enableRFIDForMember() {
 function setupRFIDListener() {
   console.log("Setting up RFID listener...");
 
-  // Listen to both current_rfid and Userdata for RFID scans
+  // Listen to current_rfid for real-time scans
   const rfidRef = database.ref("current_rfid");
 
   let lastProcessedUID = null;
   let lastProcessedTime = 0;
+  let rfidProcessingTimeout = null;
 
-  // Function to process RFID data with debouncing
-  function processRFIDData(uid) {
+  // Function to process RFID data with enhanced debouncing
+  function processRFIDData(uid, source = "unknown") {
     const now = Date.now();
+
+    // Enhanced debouncing - ignore duplicate scans within 3 seconds
     if (uid === lastProcessedUID && now - lastProcessedTime < 3000) {
-      console.log("Duplicate RFID scan ignored:", uid);
+      console.log(`Duplicate RFID scan ignored from ${source}:`, uid);
       return;
     }
 
-    lastProcessedUID = uid;
-    lastProcessedTime = now;
+    // Clear any pending processing
+    if (rfidProcessingTimeout) {
+      clearTimeout(rfidProcessingTimeout);
+    }
 
-    console.log("Processing RFID data:", uid);
-    handleRFIDData(uid);
+    // Set a small delay to handle rapid successive scans
+    rfidProcessingTimeout = setTimeout(() => {
+      lastProcessedUID = uid;
+      lastProcessedTime = now;
+
+      console.log(`Processing RFID data from ${source}:`, uid);
+      handleRFIDData(uid);
+
+      // Mark as processed in Firebase
+      database.ref("current_rfid").update({
+        status: "processed",
+        processed_at: new Date().toISOString(),
+      });
+    }, 100);
   }
 
-  // Listen to current_rfid for immediate scans
+  // Primary listener for current_rfid
   rfidRef.on(
     "value",
     (snapshot) => {
       const data = snapshot.val();
-      if (data && data.uid) {
-        console.log("RFID data received from current_rfid:", data.uid);
-        processRFIDData(data.uid);
+      if (data && data.uid && data.status === "scanned") {
+        console.log("RFID scan detected:", data);
+        processRFIDData(data.uid, "current_rfid");
       }
     },
     (error) => {
@@ -1727,25 +1744,26 @@ function setupRFIDListener() {
     }
   );
 
-  // Listen to Userdata for new card readings
+  // Backup listener for Userdata changes
+  const userdataRef = database.ref("Userdata");
+
   userdataRef.on(
     "child_changed",
     (snapshot) => {
+      const uid = snapshot.key;
       const data = snapshot.val();
-      if (data && data.uid && data.status === "scanned") {
-        // Get the latest reading
-        const readings = data.readings;
-        const readingKeys = Object.keys(readings).sort();
-        const latestReadingKey = readingKeys[readingKeys.length - 1];
-        const latestReading = readings[latestReadingKey];
+
+      if (data && data.readings) {
+        // Get the most recent reading
+        const readings = Object.values(data.readings);
+        const latestReading = readings.reduce((latest, current) => {
+          const latestTime = parseInt(latest.waktu_scan) || 0;
+          const currentTime = parseInt(current.waktu_scan) || 0;
+          return currentTime > latestTime ? current : latest;
+        });
 
         if (latestReading && latestReading.id_kartu) {
-          console.log(
-            "RFID data received from Userdata:",
-            latestReading.id_kartu
-          );
-          processRFIDData(latestReading.id_kartu);
-          rfidRef.update({ status: "processed" });
+          processRFIDData(latestReading.id_kartu, "userdata_change");
         }
       }
     },
@@ -1754,21 +1772,19 @@ function setupRFIDListener() {
     }
   );
 
-  // Also listen for new children in Userdata
-  const userdataRef = database.ref("Userdata");
+  // Listen for completely new cards
   userdataRef.on(
     "child_added",
     (snapshot) => {
+      const uid = snapshot.key;
       const data = snapshot.val();
+
       if (data && data.readings) {
-        const readings = data.readings;
-        const readingKeys = Object.keys(readings).sort();
-        const latestReadingKey = readingKeys[readingKeys.length - 1];
-        const latestReading = readings[latestReadingKey];
+        const readings = Object.values(data.readings);
+        const latestReading = readings[readings.length - 1];
 
         if (latestReading && latestReading.id_kartu) {
-          console.log("New RFID data from Userdata:", latestReading.id_kartu);
-          processRFIDData(latestReading.id_kartu);
+          processRFIDData(latestReading.id_kartu, "userdata_new");
         }
       }
     },
@@ -1862,17 +1878,56 @@ function handleMemberRFID(uid) {
     statusElement.className = "rfid-status error";
     statusElement.style.backgroundColor = "#f8d7da";
     statusElement.style.color = "#721c24";
+    // Show alert for duplicate
+    setTimeout(() => {
+      alert(
+        `Kartu sudah terdaftar atas nama: ${existingMemberName}\nSilakan gunakan kartu lain.`
+      );
+    }, 500);
   } else {
     memberUIDInput.value = uid;
-    statusElement.textContent = `Status: UID berhasil dibaca - ${uid}`;
+    statusElement.textContent = `Status: UID berhasil dibaca - ${uid.substring(
+      0,
+      12
+    )}...`;
     statusElement.className = "rfid-status success";
     statusElement.style.backgroundColor = "#d4edda";
     statusElement.style.color = "#155724";
 
     // Focus on the name field
+    // Auto-focus on name field and show helpful message
     const nameField = document.getElementById("memberName");
     if (nameField) {
-      setTimeout(() => nameField.focus(), 100);
+      setTimeout(() => {
+        nameField.focus();
+        nameField.placeholder = "Masukkan nama lengkap anggota";
+      }, 100);
+    }
+
+    // Show success feedback with sound simulation
+    if (typeof Audio !== "undefined") {
+      try {
+        const audioContext = new (window.AudioContext ||
+          window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = "sine";
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(
+          0.01,
+          audioContext.currentTime + 0.2
+        );
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch (e) {
+        console.log("Audio feedback not available");
+      }
     }
   }
 
@@ -1885,15 +1940,20 @@ function handleMemberRFID(uid) {
     }
   }
 
-  // Reset status after 5 seconds
+  // Reset status after 8 seconds for better UX
   setTimeout(() => {
-    if (statusElement) {
+    if (statusElement && !uidExists) {
+      statusElement.textContent = "Status: Siap untuk tap kartu";
+      statusElement.className = "rfid-status";
+      statusElement.style.backgroundColor = "";
+      statusElement.style.color = "";
+    } else if (statusElement) {
       statusElement.textContent = "Status: Siap untuk tap kartu";
       statusElement.className = "rfid-status";
       statusElement.style.backgroundColor = "";
       statusElement.style.color = "";
     }
-  }, 5000);
+  }, 8000);
 }
 
 function handleBorrowRFID(uid) {

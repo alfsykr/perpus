@@ -21,17 +21,34 @@
         ".validate": "newData.isString()"
       },
       "status": {
-        ".validate": "newData.isString()"
+        ".validate": "newData.isString() && (newData.val() == 'scanned' || newData.val() == 'processed' || newData.val() == 'pending')"
       }
     },
     "rfid_logs": {
       ".read": true,
-      ".write": true
+      ".write": true,
+      ".indexOn": ["uid", "timestamp", "action"]
     },
     "Userdata": {
       ".read": true,
       ".write": true,
-      ".indexOn": ["id_kartu"]
+      ".indexOn": ["id_kartu"],
+      "$uid": {
+        "readings": {
+          ".indexOn": ["waktu_scan", "status"],
+          "$readingId": {
+            "id_kartu": {
+              ".validate": "newData.isString() && newData.val().length >= 8"
+            },
+            "waktu_scan": {
+              ".validate": "newData.isString()"
+            },
+            "status": {
+              ".validate": "newData.isString()"
+            }
+          }
+        }
+      }
     }
   }
 }
